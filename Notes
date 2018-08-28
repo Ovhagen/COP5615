@@ -1,0 +1,8 @@
+Notes about Elixir:
+
+- Always try to pre-append on lists/collections due to slow append for Elixir's linked lits structure.
+- Modifying tuples is expensive and should not be done to often.
+- Keyword lists always has an atom/symbol as key.
+- In maps duplicates erase the previous value. Also has special syntax for only atom keys.
+- Tuples are not enumerables. Hence, they cannot be used with Enum. functions.
+- Inside a function reassignment can be done while still keeping its original value out of the scope.

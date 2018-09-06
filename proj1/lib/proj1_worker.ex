@@ -1,34 +1,54 @@
 defmodule Proj1.Worker do
+  @moduledoc """
+  Documentation for Proj1.Worker
+  """
 
-  def calculate_square(nbrSpace, nbr, seqLen, parent) do
-    IO.inspect nbrSpace, label: "Started"
-    result = nbr..(nbr + seqLen - 1)
-    |> Enum.to_list()
-    |> Enum.reduce(0, fn(x, acc) -> Pow.pow(x, 2)+acc end)
-    |> Kernel.trunc()
-	|> :math.sqrt()
-    IO.puts result
-    checkPerfect = nbr..(result)|> Enum.to_list() |> Enum.any?(fn(x) -> x > nbr and Pow.pow(x, 2) == result end)
-    case checkPerfect do
-      true -> send(parent, {:ok, self(), nbr |> Kernel.trunc})
-      false -> Process.exit(self(), :kill)
-    end
-	if result - Kernel.trunc(result) == 0 do
-	  send(parent, {:ok, self(), nbr |> Kernel.trunc})
-	else
-	  Process.exit(self(), :kill)
-	end
+  use GenServer
+
+  @doc """
+  Starting and linking the GenServer process.
+  Initializing a list of tuples {start, finish, seqLen} to work with as the state.
+  """
+  def start_link(state) do
+    GenServer.start_link(__MODULE__, state, name: __MODULE__)
   end
 
-end
+  @doc """
+  GenServer initialization.
+  """
+  @impl true
+ def init(state) do
+   {:ok, state}
+ end
 
-defmodule Pow do
-require Integer
+ @doc """
+ GenServer.handle_call/3 callbacks
+ """
+ @impl true
+ def handle_call(:dowork, _from, [job | state]) do
+   result = SqSum.square_sums(elem(job,0), elem(job,1), elem(job,2))
+   |> SqSum.find_squares(elem(job,0))
+   {:reply, result, state}
+ end
 
-def pow(_, 0), do: 1
-def pow(x, n) when Integer.is_odd(n), do: x * pow(x, n - 1)
-def pow(x, n) do
-  result = pow(x, div(n, 2))
-  result * result
-end
+ @impl true
+ def handle_call(:seework, _from, state) do
+   {:reply, state, state}
+ end
+
+ @doc """
+ GenServer.handle_cast/3 callbacks
+ """
+ def handle_cast({:addwork, value}, state) do
+    {:noreply, state ++ [value]}
+  end
+
+
+  @doc """
+  Helper functions to call
+  """
+  def start_work, do: GenServer.call(__MODULE__, :dowork)
+  def work_status, do: GenServer.cast(__MODULE__, :seework)
+  def add_work(value), do: GenServer.cast(__MODULE__, {:addwork, value})
+
 end

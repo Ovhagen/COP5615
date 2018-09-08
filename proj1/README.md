@@ -1,21 +1,22 @@
 # Proj1
 
-**TODO: Add description**
+This is project 1 in the course COP5615 Distributed Operating System Principles.
+
+In this project we use actor modeling to determine the perfect square of a
+consecutive sum of squares and then return the start of all such sequences.
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `proj1` to your list of dependencies in `mix.exs`:
+## Running the program
+Simply run the program by using the command 
 
-```elixir
-def deps do
-  [
-    {:proj1, "~> 0.1.0"}
-  ]
-end
-```
+Generated proj1 app
+1
+9
+20
+25
+CPU time:   128 ms
+Clock time: 31 ms
+Ratio: 4.129032258064516
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/proj1](https://hexdocs.pm/proj1).
 

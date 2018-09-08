@@ -3,8 +3,10 @@
 # second argument is the length of each sum.
 [space, length] = Enum.map_every(System.argv, 1, fn(arg) -> String.to_integer(arg) end)
 
-# Check to see how many cores we can use for the calculations.
-processes = System.schedulers_online
+# Determine how many chunks to break the total search space into.
+# At a minimum, use the number of cores available.
+# If the search space is large then cap each chunk to avoid running out of memory.
+chunks = max(1, round(space/200_000_000))*System.schedulers_online
 
 # Perform all calculations and gather the results.
 # 1. Wrap everything in a timer to keep track of clock time.
@@ -15,13 +17,13 @@ processes = System.schedulers_online
 #    b. Sequentially check each sum for perfect squares, also using a linear-time algorithm (only one call to :math.sqrt).
 # 5. Add up all of the CPU times returned by each process, and concatenate all of the results into a single list.
 {clock_time, {cpu_time, results}} = :timer.tc(fn ->
-  (for n <- 0..processes-1, do: {round(n*space/processes + 1), round((n+1)*space/processes), length})
+  (for n <- 0..chunks-1, do: {round(n*space/chunks + 1), round((n+1)*space/chunks), length})
     |> Task.async_stream(fn {a, b, c} ->
 	  :timer.tc(fn a, b, c ->
 	    SqSum.square_sums(a, b, c)
           |> SqSum.find_squares(a) end,
 		[a, b, c]) end,
-	  timeout: 60000)
+	  timeout: 600000)
     |> Enum.reduce({0, []}, fn {:ok, {time, result}}, {cpu_time, results} ->
 	  {cpu_time + time, results ++ result} end)
   end)
@@ -30,3 +32,4 @@ processes = System.schedulers_online
 Enum.each(results, fn x -> IO.puts x end)
 IO.puts "CPU time:   #{cpu_time |> Kernel./(1000) |> round()} ms"
 IO.puts "Clock time: #{clock_time |> Kernel./(1000) |> round()} ms"
+IO.puts "Ratio: #{cpu_time/clock_time}"

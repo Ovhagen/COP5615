@@ -5,11 +5,11 @@ defmodule Proj1.Supervisor do
     Supervisor.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
-  def init(_)do
+  def init(_) do
     children = [
-      {Proj1.Worker, [{1, 3, 2}]}
+      {DynamicSupervisor, strategy: :one_for_one}
     ]
-    {:ok, pid} = Supervisor.start_link(children, strategy: :one_for_one)
+    Supervisor.init(children, strategy: :one_for_one)
 
     #Supervisor.count_children(pid)
   end

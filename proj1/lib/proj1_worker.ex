@@ -39,8 +39,8 @@ defmodule Proj1.Worker do
  @doc """
  GenServer.handle_cast/3 callbacks
  """
- def handle_cast({:addwork, value}, state) do
-    {:noreply, state ++ [value]}
+ def handle_call({:addwork, value}, _from, state) do
+    {:reply, state ++ [value], state ++ [value]}
   end
 
 
@@ -48,7 +48,7 @@ defmodule Proj1.Worker do
   Helper functions to call
   """
   def start_work, do: GenServer.call(__MODULE__, :dowork)
-  def work_status, do: GenServer.cast(__MODULE__, :seework)
-  def add_work(value), do: GenServer.cast(__MODULE__, {:addwork, value})
+  def work_status, do: GenServer.call(__MODULE__, :seework)
+  def add_work(value), do: GenServer.call(__MODULE__, {:addwork, value})
 
 end

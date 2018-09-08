@@ -1,11 +1,14 @@
-params = Enum.map_every(System.argv, 1, fn(arg) -> String.to_integer(arg) end)
-IO.inspect params
-
-#Initialize input variables
-endNbr = Enum.at(params, 0)
-seqLen = Enum.at(params, 1)
-
-#Create search space 1 -> N+k
-searchSpace = Enum.to_list(1..endNbr)
-#IO.inspect searchSpace
-Proj1.calculate_seq(searchSpace, seqLen)
+[space, length] = Enum.map_every(System.argv, 1, fn(arg) -> String.to_integer(arg) end)
+processes = System.schedulers_online
+time = :timer.tc( fn ->
+  (for n <- 0..processes-1, do: {round(n*space/processes + 1), round((n+1)*space/processes), length})
+    |> Task.async_stream(fn {a, b, c} ->
+	  SqSum.square_sums(a, b, c)
+        |> SqSum.find_squares(a) end, timeout: 60000)
+    |> Enum.reduce([], fn {:ok, x}, acc -> acc ++ x end)
+    |> Enum.each(fn x -> IO.puts x end)
+  end)
+  |> elem(0)
+  |> Kernel./(1_000)
+  |> round()
+IO.puts "Running time: #{time} ms"

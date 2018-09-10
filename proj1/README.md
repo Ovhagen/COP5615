@@ -14,7 +14,7 @@ Authors: **Lars Pontus Ovhagen & James Howes**
 ## Running the program
 Simply run the program by opening up your command prompt and change the directory to the unzipped project *~/proj1*. Run *mix compile* to compile the program. Then start the program by using the command *mix run* with the script name *proj1.exs* as well as two numeric arguments. One for the upper-bound on the search and the other for the total length of the squared sequence. An example of how to run the program is shown below.
 
->>$ mix run proj1.exs 1000000 409
+>$ mix run proj1.exs 1000000 409
 71752  
 CPU time:   1624 ms  
 Clock time: 203 ms  
@@ -40,62 +40,62 @@ Ratio: 8.0
 
 ### The largest problem you managed to solve.
 The largest problem we managed to solve was *N* = 10,000,000,000 with a sequence length of *k* = 24:
->>1
-9
-20
-25
-44
-76
-121
-197
-304
-353
-540
-856
-1301
-2053
-3112
-3597
-5448
-8576
-12981
-20425
-30908
-35709
-54032
-84996
-128601
-202289
-306060
-353585
-534964
-841476
-1273121
-2002557
-3029784
-3500233
-5295700
-8329856
-12602701
-19823373
-29991872
-34648837
-52422128
-82457176
-124753981
-196231265
-296889028
-342988229
-518925672
-816241996
-1234937201
-1942489369
-2938898500
-3395233545
-5136834684
-8079962876
-CPU time:   14427160 ms
-Clock time: 449422 ms
+>1  
+9  
+20  
+25  
+44  
+76  
+121  
+197  
+304  
+353  
+540  
+856  
+1301  
+2053  
+3112  
+3597  
+5448  
+8576  
+12981  
+20425  
+30908  
+35709  
+54032  
+84996  
+128601  
+202289  
+306060  
+353585  
+534964  
+841476  
+1273121  
+2002557  
+3029784  
+3500233  
+5295700  
+8329856  
+12602701  
+19823373  
+29991872  
+34648837  
+52422128  
+82457176  
+124753981  
+196231265  
+296889028  
+342988229  
+518925672  
+816241996  
+1234937201  
+1942489369  
+2938898500  
+3395233545  
+5136834684  
+8079962876  
+CPU time:   14427160 ms  
+Clock time: 449422 ms  
 Ratio: 32.1015883245591
 
 We achieved this result while running a cluster of our two laptops plus four AWS EC2 instances.

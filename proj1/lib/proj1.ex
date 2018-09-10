@@ -31,10 +31,28 @@ defmodule Proj1 do
     master = self()
     Application.get_env(:proj1, :nodes)
 	  |> Enum.map(fn node -> {node, Node.connect(node)} end)
-	  |> Enum.map(fn {node, :true} -> {node, Node.spawn(node, Proj1, :send_cores, [master])} end)
-	  |> Enum.map(fn {node, pid} -> receive do {^pid, cores} -> {node, cores} end end)
+	  |> Enum.map(fn {node, :true} -> {node,
+		  Node.spawn(node, Proj1, :send_cores, [master]),
+		  Node.spawn(node, Proj1, :benchmark, [master])}
+		end)
+	  |> Enum.map(fn {node, pid, pid2} -> receive do {^pid, cores} -> {node, cores, pid2} end end)
+	  |> Enum.map(fn {node, cores, pid2} -> receive do {^pid2, benchmark} -> {node, cores, benchmark} end end)
   end
   
   def send_cores(pid) do (send pid, {self(), System.schedulers_online}) end
+  
+  def benchmark(pid) do
+    time = :timer.tc(fn ->
+	    Proj1.chunk_space(Application.get_env(:proj1, :benchmark))
+	    |> Task.async_stream(SqSum, :square_sums, [])
+		|> Enum.map(fn x -> x end)
+	  end)
+	  |> elem(0)
+	send pid, {self(), time}
+  end
+  
+  def chunk_space({space, length}) do
+    for n <- 0..System.schedulers_online-1, do: {round(n*space/System.schedulers_online + 1), round((n+1)*space/System.schedulers_online), length}
+  end
 
 end

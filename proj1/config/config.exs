@@ -29,4 +29,5 @@ use Mix.Config
 #
 #     import_config "#{Mix.env()}.exs"
 
-config :proj1, nodes: [:"node@WINDOWS-7J83NPL.ufl.edu"]
+config :proj1, nodes:     [:"node2@18.222.231.133", :"node1@18.191.224.242"],
+               benchmark: {10000000, 24}

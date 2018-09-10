@@ -18,17 +18,17 @@ Simply run the program by opening up your command prompt and change the director
 
 >71752
 
->CPU time:   1760 ms
+>CPU time:   1624 ms
 
->Clock time: 234 ms
+>Clock time: 203 ms
 
->Ratio: 7.521367521367521
+>Ratio: 8.0
 
 ## Project questions
 
 ### Size of the work unit
 The size of the work distributed to individual child processes are determined by the number of active cores.
-Our algorithm for find perfect square sums run in linear time and doesn't use any extra memory, so we just send
+Our algorithm for finding perfect square sums run in linear time and doesn't use any extra memory, so we just send
 one subproblem to each core on the assumption that all cores will finish in roughly the same time. This assumption
 is generally confirmed by the parallelism we observe, e.g. ratio of CPU time to clock time is almost 4 with four cores.
 
@@ -36,7 +36,12 @@ is generally confirmed by the parallelism we observe, e.g. ratio of CPU time to 
 The result of running the program with *N* = 1000000 and a sequence length of *k* = 4 was that __no sequence exist for this range__. Hence, there is no perfect square for any sequence of four consecutive squares in the number space 1-1000000.
 
 ### The running time.
-After executing the program with the parameters 1000000 4 we get a running time of __Something good...__
+After executing the program with the parameters 1000000 4 we get the following on a 8 core processor:
+>CPU time:   248 ms
+
+>Clock time: 31 ms
+
+>Ratio: 8.0
 
 ### The largest problem you managed to solve.
 The largest problem we managed to solve was 

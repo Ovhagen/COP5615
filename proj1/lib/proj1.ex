@@ -46,13 +46,23 @@ defmodule Proj1 do
 	    Proj1.chunk_space(Application.get_env(:proj1, :benchmark), System.schedulers_online)
 	    |> Task.async_stream(SqSum, :square_sums, [])
 		|> Enum.map(fn x -> x end)
-	  end)
+	end)
 	  |> elem(0)
 	send pid, {self(), 1000/time}
   end
   
   def chunk_space({space, length}, chunks) do
     for n <- 0..chunks-1, do: {round(n*space/chunks + 1), round((n+1)*space/chunks), length}
+  end
+  
+  def assign_chunks(nodes, space, length) do
+    {cores, power} = Enum.reduce(nodes, {0, 0}, fn {_node, n_cores, benchmark}, {cores, power} -> {cores + n_cores, power + benchmark} end)
+	chunks = Proj1.chunk_space({space, length}, max(trunc(space/10_000_000), cores))
+	Enum.map_reduce(nodes, {0, length(chunks), cores, power}, fn {node, n_cores, benchmark}, {used, remaining, cores, power} ->
+	  assigned = max(n_cores, min(remaining-cores+n_cores, round(remaining*benchmark/power)))
+	  {{node, Enum.slice(chunks, used..used+assigned-1)}, {used + assigned, remaining - assigned, cores - n_cores, power - benchmark}}
+	end)
+	  |> elem(0)
   end
 
 end

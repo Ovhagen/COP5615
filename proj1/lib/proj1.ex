@@ -43,16 +43,16 @@ defmodule Proj1 do
   
   def benchmark(pid) do
     time = :timer.tc(fn ->
-	    Proj1.chunk_space(Application.get_env(:proj1, :benchmark))
+	    Proj1.chunk_space(Application.get_env(:proj1, :benchmark), System.schedulers_online)
 	    |> Task.async_stream(SqSum, :square_sums, [])
 		|> Enum.map(fn x -> x end)
 	  end)
 	  |> elem(0)
-	send pid, {self(), time}
+	send pid, {self(), 1000/time}
   end
   
-  def chunk_space({space, length}) do
-    for n <- 0..System.schedulers_online-1, do: {round(n*space/System.schedulers_online + 1), round((n+1)*space/System.schedulers_online), length}
+  def chunk_space({space, length}, chunks) do
+    for n <- 0..chunks-1, do: {round(n*space/chunks + 1), round((n+1)*space/chunks), length}
   end
 
 end

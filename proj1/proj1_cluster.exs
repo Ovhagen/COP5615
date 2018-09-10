@@ -4,14 +4,20 @@
 [space, length] = Enum.map_every(System.argv, 1, fn(arg) -> String.to_integer(arg) end)
 
 # Connect to remote nodes
-nodes = [master: System.schedulers_online] ++ Proj1.init_cluster()
+nodes = [{:master, System.schedulers_online, Proj1.benchmark(self())}] ++ Proj1.init_cluster()
 
 # Break the problem down based on the total number of cores available
-num_subproblems = Enum.reduce(nodes, 0, fn {node, cores}, acc -> acc + cores end)
-subproblems = (for n <- 0..num_subproblems-1, do: {round(n*space/num_subproblems + 1), round((n+1)*space/num_subproblems), length})
+cores = Enum.reduce(nodes, 0, fn {_node, cores, _benchmark}, acc -> acc + cores end)
+chunks = Proj1.chunk_space({space, length}, max(trunc(space/10_000_000), cores))
+total = Enum.reduce(nodes, 0, fn {_node, _cores, benchmark}, acc -> acc + benchmark end)
 
 {clock_time, results} = :timer.tc(fn ->
-    Enum.map_reduce(nodes, 0, fn {node, cores}, acc -> {{node, Enum.slice(subproblems, acc..acc+cores-1)}, cores + acc} end)
+    Enum.map_reduce(nodes, {length(chunks), cores, total}, fn {node, n_cores, benchmark}, {chunks, cores, total} ->
+	    {{node, max(n_cores, min(chunks-cores+n_cores, round(chunks*benchmark/total)))},
+	    {chunks - max(n_cores, min(chunks-cores+n_cores, round(chunks*benchmark/total))), cores - n_cores, total - benchmark}}
+	  end)
+	|> elem(0)
+    |> Enum.map_reduce(nodes, 0, fn {node, n_chunks}, acc -> {{node, Enum.slice(chunks, acc..acc+n_chunks-1)}, n_chunks + acc} end)
     |> elem(0)
     |> Task.async_stream(fn
         {:master, chunk} -> Task.async_stream(chunk, SqSum, :square_sums, [], timeout: 600000)

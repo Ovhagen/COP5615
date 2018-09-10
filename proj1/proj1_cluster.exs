@@ -7,6 +7,7 @@
 pid = self()
 Proj1.benchmark(pid)
 nodes = [{:master, System.schedulers_online, (receive do {^pid, benchmark} -> benchmark end)}] ++ Proj1.init_cluster()
+IO.puts "Connected and benchmarked all nodes"
 
 # Perform all calculations and gather the results.
 # 1. Wrap everything in a timer to keep track of clock time.
@@ -21,7 +22,7 @@ nodes = [{:master, System.schedulers_online, (receive do {^pid, benchmark} -> be
 	    {node, chunks}    -> Task.Supervisor.async({Proj1.Supervisor, node}, Proj1, :calc_with_timer, [chunks])
 	  end)
     |> Enum.reduce({0, []}, fn pid, {total_time, results} ->
-	    {cpu_time, result} = await(pid, Application.get_env(:proj1, :timeout))
+	    {cpu_time, result} = Task.await(pid, Application.get_env(:proj1, :timeout))
         {total_time + cpu_time, results ++ result}
       end)
 end)

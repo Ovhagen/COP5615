@@ -44,4 +44,63 @@ After executing the program with the parameters 1000000 4 we get the following o
 >Ratio: 8.0
 
 ### The largest problem you managed to solve.
-The largest problem we managed to solve was 
+The largest problem we managed to solve was *N* = 10,000,000,000 with a sequence length of *k* = 24:
+1
+9
+20
+25
+44
+76
+121
+197
+304
+353
+540
+856
+1301
+2053
+3112
+3597
+5448
+8576
+12981
+20425
+30908
+35709
+54032
+84996
+128601
+202289
+306060
+353585
+534964
+841476
+1273121
+2002557
+3029784
+3500233
+5295700
+8329856
+12602701
+19823373
+29991872
+34648837
+52422128
+82457176
+124753981
+196231265
+296889028
+342988229
+518925672
+816241996
+1234937201
+1942489369
+2938898500
+3395233545
+5136834684
+8079962876
+CPU time:   14427160 ms
+Clock time: 449422 ms
+Ratio: 32.1015883245591
+
+We achieved this result while running a cluster of our two laptops plus four AWS EC2 instances.

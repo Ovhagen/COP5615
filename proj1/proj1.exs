@@ -14,9 +14,7 @@ chunks = System.schedulers_online
 # Perform all calculations and gather the results.
 # 1. Wrap everything in a timer to keep track of clock time.
 # 2. Divide the search space into equal chunks based on the number of available cores.
-# 3. Send each chunk to a separate process, wrapped in a timer to keep track of CPU time.
-# 4. Find all perfect square sums within the chunk using a linear time algorithm
-# 5. Add up all of the CPU times returned by each process, and concatenate all of the results into a single list.
+# 3. Perform calculations with CPU times for each process
 {clock_time, {cpu_time, results}} = :timer.tc(fn ->
   (for n <- 0..chunks-1, do: {round(n*space/chunks + 1), round((n+1)*space/chunks), length})
     |> Proj1.calc_with_timer()

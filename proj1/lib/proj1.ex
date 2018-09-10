@@ -9,20 +9,11 @@ defmodule Proj1 do
   """
 
   @doc """
-  Calculates the perfect square.
-
-  ## Parameters
-
-    - An integer number for the upper-bound on the search.
-    - An integer number for the total length of the squared sequence.
-
-  ## Examples
-
-      mix run proj1.exs 3 2
-      3
-
-      mix run proj1.exs 40 24
-      1
+  Initializes the cluster when running on remote nodes.
+  All remote nodes are defined in the configuration, and the function will error if any nodes
+  are not responding.
+  For each node, we also retrieve the number of cores available and run a benchmark test
+  to determine the relative processing speed of the node.
 
   """
 
@@ -39,6 +30,11 @@ defmodule Proj1 do
 	  |> Enum.map(fn {node, cores, pid2} -> receive do {^pid2, benchmark} -> {node, cores, benchmark} end end)
   end
   
+  @doc """
+  Replies with the number of cores available on the node
+
+  """
+
   def send_cores(pid) do (send pid, {self(), System.schedulers_online}) end
   
   def benchmark(pid) do

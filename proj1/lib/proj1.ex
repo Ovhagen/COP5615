@@ -64,5 +64,12 @@ defmodule Proj1 do
 	end)
 	  |> elem(0)
   end
+  
+  def calc_with_timer(chunks) do
+    Task.async_stream(chunks, fn chunk -> :timer.tc(SqSum, :square_sums, [chunk]) end, timeout: Application.get_env(:proj1, :timeout))
+      |> Enum.reduce({0, []}, fn {:ok, {time, result}}, {cpu_time, results} ->
+	      {cpu_time + time, results ++ result}
+		end)
+  end
 
 end

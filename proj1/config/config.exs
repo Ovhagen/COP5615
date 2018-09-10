@@ -30,6 +30,8 @@ use Mix.Config
 #     import_config "#{Mix.env()}.exs"
 
 config :proj1, nodes:     [:"node1@18.223.149.189",
-                           :"node2@18.220.239.218"],
+                           :"node2@18.220.239.218",
+						   :"node3@18.219.232.208",
+						   :"node4@18.223.115.68"],
                benchmark: {20_000_000, 24},
 			   timeout:   600000

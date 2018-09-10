@@ -19,13 +19,7 @@ chunks = System.schedulers_online
 # 5. Add up all of the CPU times returned by each process, and concatenate all of the results into a single list.
 {clock_time, {cpu_time, results}} = :timer.tc(fn ->
   (for n <- 0..chunks-1, do: {round(n*space/chunks + 1), round((n+1)*space/chunks), length})
-    |> Task.async_stream(fn chunk ->
-	  :timer.tc(fn chunk ->
-	    SqSum.square_sums(chunk) end,
-		[chunk]) end,
-	  timeout: 600000)
-    |> Enum.reduce({0, []}, fn {:ok, {time, result}}, {cpu_time, results} ->
-	  {cpu_time + time, results ++ result} end)
+    |> Proj1.calc_with_timer()
   end)
 
 # Print each result on a separate line, then print the elapsed CPU time and clock time.

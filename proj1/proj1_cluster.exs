@@ -13,21 +13,25 @@ nodes = [{:master, System.schedulers_online, (receive do {^pid, benchmark} -> be
 # 2. Divide the search space into chunks and allocate work to each node based on its relative benchmark performance
 # 3. Send the work to each node, using Supervisors for remote nodes
 # 4. Compile the results into a single list
-to = Application.get_env(:proj1, :timeout)
-{clock_time, results} = :timer.tc(fn ->
+{clock_time, {cpu_time, results}} = :timer.tc(fn ->
   nodes
     |> Proj1.assign_chunks(space, length)
-    |> Task.async_stream(fn
-        {:master, chunks} -> Task.async_stream(chunks, SqSum, :square_sums, [], timeout: to)
-        {node, chunks}    -> Task.Supervisor.async_stream({Proj1.Supervisor, node}, chunks, SqSum, :square_sums, [], timeout: to)
-      end, timeout: to)
-    |> Enum.reduce([], fn {:ok, results}, acc ->
-        acc ++ Enum.reduce(results, [], fn {:ok, result}, acc ->
-  	      acc ++ result
-        end)
+    |> Enum.map(fn
+	    {:master, chunks} -> Task.async(Proj1, :calc_with_timer, [chunks])
+	    {node, chunks}    -> Task.Supervisor.async({Proj1.Supervisor, node}, Proj1, :calc_with_timer, [chunks])
 	  end)
+    |> Enum.reduce({0, []}, fn pid, {total_time, results} ->
+	    {cpu_time, result} = await(pid, Application.get_env(:proj1, :timeout))
+        {total_time + cpu_time, results ++ result}
+      end)
 end)
 
 # Output each result on a separate line, then output the total running time
 Enum.each(results, fn x -> IO.puts x end)
-IO.puts "Run time: #{clock_time |> Kernel./(1000) |> round()} ms"
+IO.puts "CPU time:   #{cpu_time |> Kernel./(1000) |> round()} ms"
+IO.puts "Clock time: #{clock_time |> Kernel./(1000) |> round()} ms"
+if clock_time == 0 do
+  IO.puts "Ratio: #{0}"
+else
+  IO.puts "Ratio: #{cpu_time/clock_time}"
+end

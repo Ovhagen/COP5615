@@ -4,7 +4,9 @@
 [space, length] = Enum.map_every(System.argv, 1, fn(arg) -> String.to_integer(arg) end)
 
 # Connect to remote nodes and benchmark all nodes
-nodes = [{:master, System.schedulers_online, Proj1.benchmark(self())}] ++ Proj1.init_cluster()
+pid = self()
+Proj1.benchmark(pid)
+nodes = [{:master, System.schedulers_online, (receive do {^pid, benchmark} -> benchmark end)}] ++ Proj1.init_cluster()
 
 # Perform all calculations and gather the results.
 # 1. Wrap everything in a timer to keep track of clock time.

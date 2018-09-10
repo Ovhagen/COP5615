@@ -33,9 +33,9 @@ The result of running the program with *N* = 1000000 and a sequence length of *k
 
 ### The running time.
 After executing the program with the parameters 1000000 4 we get the following on a 8 core processor:
->>$ mix run proj1.exs 1000000 4
-CPU time:   248 ms
-Clock time: 31 ms
+>$ mix run proj1.exs 1000000 4  
+CPU time:   248 ms  
+Clock time: 31 ms  
 Ratio: 8.0
 
 ### The largest problem you managed to solve.

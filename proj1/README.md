@@ -16,21 +16,13 @@ Simply run the program by opening up your command prompt of choice. Run *mix com
 
 >$ mix run proj1.exs 40 24
 
->Generated proj1 app
+>71752
 
->1
+>CPU time:   1760 ms
 
->9
+>Clock time: 234 ms
 
->20
-
->25
-
->CPU time:   128 ms
-
->Clock time: 31 ms
-
->Ratio: 4.129032258064516
+>Ratio: 7.521367521367521
 
 ## Project questions
 

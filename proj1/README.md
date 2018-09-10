@@ -14,15 +14,11 @@ Authors: **Lars Pontus Ovhagen & James Howes**
 ## Running the program
 Simply run the program by opening up your command prompt and change the directory to the unzipped project *~/proj1*. Run *mix compile* to compile the program. Then start the program by using the command *mix run* with the script name *proj1.exs* as well as two numeric arguments. One for the upper-bound on the search and the other for the total length of the squared sequence. An example of how to run the program is shown below.
 
->$ mix run proj1.exs 1000000 409
-
->71752
-
->CPU time:   1624 ms
-
->Clock time: 203 ms
-
->Ratio: 8.0
+>>$ mix run proj1.exs 1000000 409
+71752
+CPU time:   1624 ms
+Clock time: 203 ms
+Ratio: 8.0
 
 ## Project questions
 
@@ -37,15 +33,14 @@ The result of running the program with *N* = 1000000 and a sequence length of *k
 
 ### The running time.
 After executing the program with the parameters 1000000 4 we get the following on a 8 core processor:
->CPU time:   248 ms
-
->Clock time: 31 ms
-
->Ratio: 8.0
+>>$ mix run proj1.exs 1000000 4
+CPU time:   248 ms
+Clock time: 31 ms
+Ratio: 8.0
 
 ### The largest problem you managed to solve.
 The largest problem we managed to solve was *N* = 10,000,000,000 with a sequence length of *k* = 24:
-1
+>>1
 9
 20
 25
@@ -104,3 +99,14 @@ Clock time: 449422 ms
 Ratio: 32.1015883245591
 
 We achieved this result while running a cluster of our two laptops plus four AWS EC2 instances.
+
+## Bonus Assignment
+For the bonus assignment we use distributed tasks to form clusters in Elixir. The machines running the program will be remote actors, which will send statistics, work and results to the supervisor.
+
+## Setup
+To setup the remote nodes you first need Elixir to be installed on all the machines that will work in the cluster.
+
+## Executing the program
+After connecting to the other nodes through the master node, you can start the program with a task supervisor. This is done with the command:
+
+>> $ Some command

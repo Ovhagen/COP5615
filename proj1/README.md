@@ -23,10 +23,9 @@ Ratio: 8.0
 ## Project questions
 
 ### Size of the work unit
-The size of the work distributed to individual child processes are determined by the number of active cores.
-Our algorithm for finding perfect square sums run in linear time and doesn't use any extra memory, so we just send
-one subproblem to each core on the assumption that all cores will finish in roughly the same time. This assumption
-is generally confirmed by the parallelism we observe, e.g. ratio of CPU time to clock time is almost 4 with four cores.
+When running locally, the size of the work distributed to individual child processes is determined by the number of active cores. Our algorithm for finding perfect square sums run in linear time and doesn't use any extra memory, so we just send one subproblem to each core on the assumption that all cores will finish in roughly the same time. This assumption is generally confirmed by the parallelism we observe, e.g. ratio of CPU time to clock time is almost 4 with four cores.
+
+When running on a distributed cluster, we distribute work according to the relative processing power of each node. This is determined by running a short __benchmark test__ on each node during the cluster initialization. The benchmark test is run exactly as the local test above, with the number of work units equal to the number of cores on the node. This heuristic allows us to attain significant parallelism without the more complex architecture required to dynamically allocate work to nodes. E.g. in a cluster of 
 
 ### The result of running 1000000 4
 The result of running the program with *N* = 1000000 and a sequence length of *k* = 4 was that __no sequence exist for this range__. Hence, there is no perfect square for any sequence of four consecutive squares in the number space 1-1000000.
@@ -98,10 +97,10 @@ CPU time:   14427160 ms
 Clock time: 449422 ms  
 Ratio: 32.1015883245591
 
-We achieved this result while running a cluster of our two laptops plus four AWS EC2 instances.
+We achieved this result while running a cluster of our two laptops plus four AWS EC2 instances. The machines had a total of 36 cores, which is only slightly greater than the parallelism ratio recorded in the test.
 
-## Bonus Assignment
-For the bonus assignment we use distributed tasks to form clusters in Elixir. The machines running the program will be remote actors, which will send statistics, work and results to the supervisor.
+## Bonus Assignment: Remote nodes
+We have developed a version of the program that is capable of running on multiple remote nodes.
 
 ## Setup
 To setup the remote nodes you first need Elixir to be installed on all the machines that will work in the cluster. Next, ...

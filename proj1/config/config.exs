@@ -8,27 +8,6 @@ use Mix.Config
 # if you want to provide default values for your application for
 # 3rd-party users, it should be done in your "mix.exs" file.
 
-# You can configure your application as:
-#
-#     config :proj1, key: :value
-#
-# and access this configuration in your application as:
-#
-#     Application.get_env(:proj1, :key)
-#
-# You can also configure a 3rd-party app:
-#
-#     config :logger, level: :info
-#
-
-# It is also possible to import configuration files, relative to this
-# directory. For example, you can emulate configuration per environment
-# by uncommenting the line below and defining dev.exs, test.exs and such.
-# Configuration from the imported file will override the ones defined
-# here (which is why it is important to import them last).
-#
-#     import_config "#{Mix.env()}.exs"
-
 config :proj1, nodes:     [:"nodexl1@18.219.116.23",
                            :"nodexl2@18.188.181.236",
 						   :"nodexl3@13.59.130.152",
@@ -46,3 +25,4 @@ config :proj1, nodes:     [:"nodexl1@18.219.116.23",
 # :"nodexl2@18.188.181.236"
 # :"nodexl3@13.59.130.152"
 # :"nodexl4@18.222.164.217"
+# :"pontus@10.138.41.171"

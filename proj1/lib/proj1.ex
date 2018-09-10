@@ -2,14 +2,15 @@ defmodule Proj1 do
   @moduledoc """
   This is project 1 in the course COP5615 Distributed Operating System Principles.
 
-  In this project we use actor modeling to determine the perfect square of a
-  consecutive sum of squares.
+  This module defines a number of helper functions to assist in connecting to remote nodes
+  for distributed operation, as well as transform the problem parameters into properly
+  formatted input to streamline processing.
 
   Authors: Pontus Ovhagen & James Howes
   """
 
   @doc """
-  Initializes the cluster when running on remote nodes.
+  Initializes the cluster when running the distributed version.
   All remote nodes are defined in the configuration, and the function will error if any nodes
   are not responding.
   For each node, we also retrieve the number of cores available and run a benchmark test
@@ -31,11 +32,17 @@ defmodule Proj1 do
   end
   
   @doc """
-  Replies with the number of cores available on the node
+  Replies to the caller with the number of cores available on the node.
 
   """
 
   def send_cores(pid) do (send pid, {self(), System.schedulers_online}) end
+  
+  @doc """
+  Runs a benchmark computation test, as specified in the configuration, to determine processor speed,
+  and sends this result back to the caller.
+
+  """
   
   def benchmark(pid) do
     time = :timer.tc(fn ->
@@ -47,9 +54,21 @@ defmodule Proj1 do
 	send pid, {self(), 1000/time}
   end
   
+  @doc """
+  Divides a problem space into equal sized chunks, and formats the output so it can be used as
+  input for SqSum.square_sums/1
+
+  """
+  
   def chunk_space({space, length}, chunks) do
     for n <- 0..chunks-1, do: {round(n*space/chunks + 1), round((n+1)*space/chunks), length}
   end
+  
+  @doc """
+  Takes a list of nodes and a problem space, chunks the problem space into subproblems, and then
+  assigns subproblems to each node based on its relative computational power.
+
+  """
   
   def assign_chunks(nodes, space, length) do
     {cores, power} = Enum.reduce(nodes, {0, 0}, fn {_node, n_cores, benchmark}, {cores, power} -> {cores + n_cores, power + benchmark} end)
@@ -61,6 +80,12 @@ defmodule Proj1 do
 	  |> elem(0)
   end
   
+  @doc """
+  Runs SqSum.square_sums/1 asynchronously, keeping track of CPU time used by each process.
+  Returns the results of the computation as well as the total CPU time used.
+
+  """
+
   def calc_with_timer(chunks) do
     Task.async_stream(chunks, fn chunk -> :timer.tc(SqSum, :square_sums, [chunk]) end, timeout: Application.get_env(:proj1, :timeout))
       |> Enum.reduce({0, []}, fn {:ok, {time, result}}, {cpu_time, results} ->

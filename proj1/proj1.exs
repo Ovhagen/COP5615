@@ -22,10 +22,10 @@ chunks = System.schedulers_online
 
 # Print each result on a separate line, then print the elapsed CPU time and clock time.
 Enum.each(results, fn x -> IO.puts x end)
-IO.puts "CPU time:   #{cpu_time |> Kernel./(1000) |> round()} ms"
-IO.puts "Clock time: #{clock_time |> Kernel./(1000) |> round()} ms"
-if clock_time == 0 do
-  IO.puts "Ratio: #{0}"
-else
-  IO.puts "Ratio: #{cpu_time/clock_time}"
-end
+# IO.puts "CPU time:   #{cpu_time |> Kernel./(1000) |> round()} ms"
+# IO.puts "Clock time: #{clock_time |> Kernel./(1000) |> round()} ms"
+# if clock_time == 0 do
+  # IO.puts "Ratio: #{0}"
+# else
+  # IO.puts "Ratio: #{cpu_time/clock_time}"
+# end

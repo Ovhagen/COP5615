@@ -15,13 +15,21 @@ Authors: **Lars Pontus Ovhagen & James Howes**
 Simply run the program by opening up your command prompt of choice. Run *mix compile* to compile the program. Then start the program by using the command *mix run* with the script name *proj1.exs* as well as two numeric arguments. One for the upper-bound on the search and the other for the total length of the squared sequence. An example of how to run the program is shown below.
 
 >$ mix run proj1.exs 40 24
+
 >Generated proj1 app
+
 >1
+
 >9
+
 >20
+
 >25
+
 >CPU time:   128 ms
+
 >Clock time: 31 ms
+
 >Ratio: 4.129032258064516
 
 ## Project questions

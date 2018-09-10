@@ -15,7 +15,7 @@ chunks = System.schedulers_online
 # 1. Wrap everything in a timer to keep track of clock time.
 # 2. Divide the search space into equal chunks based on the number of available cores.
 # 3. Perform calculations with CPU times for each process
-{clock_time, {cpu_time, results}} = :timer.tc(fn ->
+{_clock_time, {_cpu_time, results}} = :timer.tc(fn ->
   (for n <- 0..chunks-1, do: {round(n*space/chunks + 1), round((n+1)*space/chunks), length})
     |> Proj1.calc_with_timer()
   end)

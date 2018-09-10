@@ -32,4 +32,8 @@ chunks = System.schedulers_online
 Enum.each(results, fn x -> IO.puts x end)
 IO.puts "CPU time:   #{cpu_time |> Kernel./(1000) |> round()} ms"
 IO.puts "Clock time: #{clock_time |> Kernel./(1000) |> round()} ms"
-IO.puts "Ratio: #{Float.round(cpu_time/clock_time, 2)}"
+if clock_time == 0 do
+  IO.puts "Ratio: #{0}"
+else
+  IO.puts "Ratio: #{cpu_time/clock_time}"
+end

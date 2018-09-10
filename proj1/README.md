@@ -4,7 +4,10 @@ This is project 1 in the course COP5615 Distributed Operating System Principles.
 
 In this project we use the actor modeling available in Elixir to determine the perfect square of a consecutive sum of squares and then return the start of all such sequences. Additionally, we can report the Real time, CPU time and the corresponding parallelism ratio after executing the program.
 
-Authors: **Lars Pontus Ovhagen & James Howes**
+### Authors
+Lars Pontus Ovhagen (UFID 2992-9498)
+
+James Howes (UFID 9262-9312)
 
 ## Installation
 1. Make sure to have Elixir installed and that it is correctly added to you Environment PATH variable. You should be able to run i.e. iex, mix run etc.

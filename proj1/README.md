@@ -104,9 +104,9 @@ We achieved this result while running a cluster of our two laptops plus four AWS
 For the bonus assignment we use distributed tasks to form clusters in Elixir. The machines running the program will be remote actors, which will send statistics, work and results to the supervisor.
 
 ## Setup
-To setup the remote nodes you first need Elixir to be installed on all the machines that will work in the cluster.
+To setup the remote nodes you first need Elixir to be installed on all the machines that will work in the cluster. Next, ...
 
 ## Executing the program
 After connecting to the other nodes through the master node, you can start the program with a task supervisor. This is done with the command:
 
->> $ Some command
+> $ Some command

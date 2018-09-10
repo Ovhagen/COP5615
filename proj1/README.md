@@ -1,4 +1,4 @@
-# Proj1
+# Project 1
 
 This is project 1 in the course COP5615 Distributed Operating System Principles.
 

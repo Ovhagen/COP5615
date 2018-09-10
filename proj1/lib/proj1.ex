@@ -26,16 +26,15 @@ defmodule Proj1 do
 
   """
 
-  def calculate_seq(nbrSpace, seqLen) do
-    Enum.each(nbrSpace,
-    fn(nbr) -> spawn(Proj1.Worker, :calculate_square, [nbrSpace, nbr, seqLen, self()]) end)
-    receiveResult()
+  def init_cluster() do
+    Node.start(:master)
+    master = self()
+    Application.get_env(:proj1, :nodes)
+	  |> Enum.map(fn node -> {node, Node.connect(node)} end)
+	  |> Enum.map(fn {node, :true} -> {node, Node.spawn(node, Proj1, :send_cores, [master])} end)
+	  |> Enum.map(fn {node, pid} -> receive do {^pid, cores} -> {node, cores} end end)
   end
-
-  def receiveResult do
-    receive do
-      {:ok, sender, result} -> IO.inspect sender, label: "Result #{result} given by"
-    end
-  end
+  
+  def send_cores(pid) do (send pid, {self(), System.schedulers_online}) end
 
 end

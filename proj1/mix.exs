@@ -8,7 +8,7 @@ defmodule Proj1.MixProject do
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      escript: [main_module: Proj1] #Add this for CMD input, then mix escript.build
+	  erlc_options: [{:kernel, [{"inet_dist_listen_min", 9100},{"inet_dist_listen_max", 9115}]}]
     ]
   end
 

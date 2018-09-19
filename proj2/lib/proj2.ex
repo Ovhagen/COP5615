@@ -1,18 +1,14 @@
 defmodule Proj2 do
   @moduledoc """
-  Documentation for Proj2.
+  This is project 2 in the course COP5615 Distributed Operating System Principles.
+
+
+  Authors: Pontus Ovhagen & James Howes
   """
 
   @doc """
-  Hello world.
 
-  ## Examples
-
-      iex> Proj2.hello()
-      :world
 
   """
-  def hello do
-    :world
-  end
+
 end

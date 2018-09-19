@@ -11,14 +11,16 @@
 
 #Case match arguments
 case [numNodes, topology, algorithm] do
+
+  #Maps the number of active children and roll neighbors to each one of them.
+  #Sends this to the supervisor to update the nodes and the start the simulation.
   [nodes, "full", "gossip"] ->
     {:ok, pid} = Proj2.Supervisor.start_link([nodes |> String.to_integer, topology, algorithm])
-    active_children = SupervisorHelper.map_children(pid)
-    neighbors = SupervisorHelper.roll_neighbors(active_children, topology)
+    active_children = UtilityFunctions.map_children(pid)
+    neighbors = UtilityFunctions.roll_neighbors(active_children, topology)
     Proj2.Supervisor.distributeNeighbors(neighbors)
-    Proj2.Supervisor.start_simulation(Enum.random(neighbors))
+    Proj2.Supervisor.start_simulation(Enum.random(neighbors), length(active_children))
+
    _->
     IO.puts "Arguments did not match supported topology or algorithm"
 end
-
-#Map the children

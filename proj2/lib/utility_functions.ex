@@ -1,4 +1,4 @@
-defmodule SupervisorHelper do
+defmodule UtilityFunctions do
 
   def map_children(pid) do
     #Map the children

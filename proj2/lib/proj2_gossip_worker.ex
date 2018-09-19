@@ -41,14 +41,26 @@ defmodule Proj2.GossipWorker do
  @doc """
  GenServer.handle_hande_info/2 callbacks
  """
+
+ @doc """
+ Invoced when a message has been received.
+ Updates the state of received messages.
+ Either just sends a new message or sends a finish request to the boss when converged.
+ """
  @impl true
  def handle_info(:doincrement, state) do
    IO.puts "#{inspect(self())}: Boss. Got a message from someone!"
    state = update_state(state)
    if Enum.at(state, 1) == Enum.at(state, 0) do
       IO.puts "#{inspect(self())}: Im finished boss!"
-   else
+      send_message(state)
+      send Enum.at(state, 3), {:finished, self()}
+      terminate("Finished", state) #Should we terminate in child or parent? Parent would be optimal.
+
+   else if Enum.at(state, 1) < Enum.at(state, 0) do
      send_message(state)
+   end
+
    end
    {:noreply, state}
  end

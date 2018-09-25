@@ -19,7 +19,7 @@ defmodule Proj2.Supervisor do
   # Helper functions
   def generate_children(limit, numNodes, sup_pid) do
     Enum.map(1..numNodes, fn(nbr) ->
-      Supervisor.child_spec({Proj2.GossipWorker, [limit, 0, [], sup_pid]}, id: nbr)
+      Supervisor.child_spec({Node, [limit, 0, [], sup_pid]}, id: {Node, nbr})
     end)
   end
 

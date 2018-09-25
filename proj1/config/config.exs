@@ -8,11 +8,7 @@ use Mix.Config
 # if you want to provide default values for your application for
 # 3rd-party users, it should be done in your "mix.exs" file.
 
-config :proj1, nodes:     [:"nodexl1@18.219.116.23",
-                           :"nodexl2@18.188.181.236",
-						   :"nodexl3@13.59.130.152",
-						   :"nodexl4@18.222.164.217",
-						   :"pontus@10.138.41.171"],
+config :proj1, nodes:     [:"pontus@10.138.63.52"],
                benchmark: {20_000_000, 24},
 			   timeout:   600000
 

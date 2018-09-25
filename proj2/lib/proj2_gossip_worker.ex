@@ -39,10 +39,8 @@ defmodule Proj2.GossipWorker do
  end
 
  @doc """
- GenServer.handle_hande_info/2 callbacks
- """
+ GenServer.handle_info/2 callbacks
 
- @doc """
  Invoced when a message has been received.
  Updates the state of received messages.
  Either just sends a new message or sends a finish request to the boss when converged.

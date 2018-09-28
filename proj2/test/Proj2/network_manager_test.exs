@@ -2,11 +2,11 @@ defmodule Proj2.NetworkManagerTest do
   use ExUnit.Case
   
   setup do
-    start_supervised(Proj2.NetworkManager)
+    start_supervised!(Proj2.NetworkManager)
     %{
 	  tx_fn:      (fn x -> {x, 1} end),
 	  rcv_fn:     (fn x, y -> x+y end),
-	  kill_fn:    (fn x -> if x >= 10, do: {:ok, x}, else: {:kill, x} end),
+	  kill_fn:    (fn x -> if x < 10, do: {:ok, x}, else: {:kill, x} end),
 	  topology_fn: &Proj2.Topology.full/1
 	}
   end
@@ -14,14 +14,16 @@ defmodule Proj2.NetworkManagerTest do
   test "starts and kills children", %{tx_fn: tx_fn, rcv_fn: rcv_fn, kill_fn: kill_fn} do
     {:ok, pid} = Proj2.NetworkManager.start_child(0, tx_fn, rcv_fn, kill_fn)
 	assert Map.get(DynamicSupervisor.count_children(Proj2.NetworkManager), :active) == 1
-	Proj2.NetworkManager.start_children(10, 0, tx_fn, rcv_fn, kill_fn)
+	Proj2.NetworkManager.start_children((for n <- 1..10, do: 0), tx_fn, rcv_fn, kill_fn)
 	assert Map.get(DynamicSupervisor.count_children(Proj2.NetworkManager), :active) == 11
 	DynamicSupervisor.terminate_child(Proj2.NetworkManager, pid)
 	assert Map.get(DynamicSupervisor.count_children(Proj2.NetworkManager), :active) == 10
   end
   
   test "sets up network", %{tx_fn: tx_fn, rcv_fn: rcv_fn, kill_fn: kill_fn, topology_fn: topology_fn} do
-    Proj2.NetworkManager.start_children(10, 0, tx_fn, rcv_fn, kill_fn)
+    {:ok, [node1 | nodes]} = Proj2.NetworkManager.start_children((for n <- 1..10, do: 0), tx_fn, rcv_fn, kill_fn)
 	assert Proj2.NetworkManager.set_network(topology_fn) == :ok
+	Proj2.GossipNode.get(node1, :neighbors)
+	  |> Enum.each(fn node -> assert node in nodes end)
   end
 end

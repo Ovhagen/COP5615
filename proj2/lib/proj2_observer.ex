@@ -35,7 +35,7 @@ defmodule Proj2.Observer do
   Handle request to monitor network.
   """
   @impl true
-  def handle_call({:monitor, sup}, _from, state) do
+  def handle_call({:monitor, sup}, _from, _state) do
     refs = DynamicSupervisor.which_children(sup)
 	  |> Enum.map(fn {:undefined, pid, _type, _modules} -> {pid, Process.monitor(pid)} end)
 	{:reply, :ok, refs}
@@ -47,6 +47,7 @@ defmodule Proj2.Observer do
   @impl true
   def handle_info({:DOWN, ref, :process, pid, :converged}, refs) do
     refs = List.delete(refs, {pid, ref})
-	if refs, do: {:noreply, refs}, else: {:stop, :converged, refs}
+	IO.puts "OBSERVER: Node #{inspect(pid)} converged, #{length(refs)} nodes remaining"
+	if length(refs) > 0, do: {:noreply, refs}, else: {:stop, :converged, refs}
   end
 end

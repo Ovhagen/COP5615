@@ -70,7 +70,6 @@ defmodule Proj2.GossipNode do
   @impl true
   def handle_info(:transmit, %{neighbors: neighbors, data: data, tx_fn: fun, kill_fn: kfun} = state) when length(neighbors) > 0 do
     {data, gossip} = fun.(data)
-	IO.puts "#{inspect(self())}: Sending gossip"
     gossip(Enum.random(neighbors), gossip)
 	case kfun.(data) do
 	  {:ok, data} ->
@@ -80,7 +79,7 @@ defmodule Proj2.GossipNode do
 		    |> Map.put(:mode, :active)
 			|> Map.put(:data, data)}
 	  {:kill, data} ->
-	    {:stop, :converged, data}
+	    {:stop, :normal, data}
 	end
   end
   
@@ -91,7 +90,6 @@ defmodule Proj2.GossipNode do
   """
   @impl true
   def handle_cast({:gossip, gossip}, %{mode: mode, data: data, rcv_fn: fun} = state) do
-    IO.puts "#{inspect(self())}: Received gossip"
 	if mode == :passive, do: (send self(), :transmit)
 	{:noreply,
 	  state

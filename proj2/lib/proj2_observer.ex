@@ -45,9 +45,8 @@ defmodule Proj2.Observer do
   Catch terminations of monitored nodes.
   """
   @impl true
-  def handle_info({:DOWN, ref, :process, pid, :converged}, refs) do
+  def handle_info({:DOWN, ref, :process, pid, :normal}, refs) do
     refs = List.delete(refs, {pid, ref})
-	IO.puts "OBSERVER: Node #{inspect(pid)} converged, #{length(refs)} nodes remaining"
-	if length(refs) > 0, do: {:noreply, refs}, else: {:stop, :converged, refs}
+	if length(refs) > 0, do: {:noreply, refs}, else: {:stop, :normal, refs}
   end
 end

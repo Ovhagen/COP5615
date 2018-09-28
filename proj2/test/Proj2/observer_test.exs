@@ -13,7 +13,7 @@ defmodule Proj2.ObserverTest do
   end
   
   test "establishes network monitoring", %{tx_fn: tx_fn, rcv_fn: rcv_fn, kill_fn: kill_fn} do
-    Proj2.NetworkManager.start_children((for n <- 1..10, do: 0), tx_fn, rcv_fn, kill_fn)
+    Proj2.NetworkManager.start_children((for _n <- 1..10, do: 0), tx_fn, rcv_fn, kill_fn)
 	assert Proj2.Observer.monitor_network(Proj2.NetworkManager) == :ok
   end
 end

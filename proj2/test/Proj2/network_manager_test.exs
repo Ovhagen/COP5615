@@ -21,7 +21,7 @@ defmodule Proj2.NetworkManagerTest do
   end
   
   test "sets up network", %{tx_fn: tx_fn, rcv_fn: rcv_fn, kill_fn: kill_fn, topology_fn: topology_fn} do
-    {:ok, [node1 | nodes]} = Proj2.NetworkManager.start_children((for _n <- 1..10, do: 0), tx_fn, rcv_fn, kill_fn)
+    {:ok, [node1 | nodes]} = Proj2.NetworkManager.start_children(List.duplicate(0, 1000), tx_fn, rcv_fn, kill_fn)
 	assert Proj2.NetworkManager.set_network(topology_fn) == :ok
 	Proj2.GossipNode.get(node1, :neighbors)
 	  |> Enum.each(fn node -> assert node in nodes end)

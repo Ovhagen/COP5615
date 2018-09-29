@@ -14,7 +14,7 @@ IO.puts "Starting #{numNodes} gossip nodes..."
 
 IO.puts "Setting network topology..."
 :ok = Proj2.Observer.monitor_network(Proj2.NetworkManager)
-:ok = Proj2.NetworkManager.set_network(&Proj2.Topology.full/1)
+:ok = Proj2.NetworkManager.set_network(&Proj2.Topology.grid_2d/1)
 
 IO.puts "Starting gossip..."
 {time, _} = :timer.tc(fn ->

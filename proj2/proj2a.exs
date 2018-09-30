@@ -1,4 +1,4 @@
-{numNodes, [topology]} = {String.to_integer(hd(System.argv)), tl(System.argv)}
+{numNodes, topology, algorithm} = {String.to_integer(hd(System.argv)), Enum.at(System.argv, 1), Enum.at(System.argv, 2)}
 
 IO.puts "Starting network manager and observer..."
 Process.flag :trap_exit, true
@@ -6,7 +6,11 @@ Proj2.NetworkManager.start_link()
 Proj2.Observer.start_link()
 
 IO.puts "Starting #{numNodes} gossip nodes..."
-{:ok, [node | _nodes]} = Proj2.NetworkManager.start_children(Proj2.Messenger, List.duplicate([], numNodes))
+{:ok, [node | _nodes]} =
+  case algorithm do
+    "gossip"   -> Proj2.NetworkManager.start_children(Proj2.Messenger, List.duplicate([], numNodes))
+	"push-sum" -> Proj2.NetworkManager.start_children(Proj2.PushSum, (for n <- 1..numNodes, do: [n]))
+  end
 :ok = Proj2.Observer.monitor_network(Proj2.NetworkManager)
 
 IO.puts "Setting network topology..."
@@ -22,7 +26,10 @@ IO.puts "Setting network topology..."
 
 IO.puts "Starting gossip..."
 {time, _} = :timer.tc(fn ->
-  Proj2.GossipNode.gossip(node, [:hello])
+  case algorithm do
+    "gossip"   -> Proj2.GossipNode.gossip(node, [:hello])
+	"push-sum" -> Proj2.GossipNode.transmit(node)
+  end
   receive do
     {:EXIT, _from, :normal} -> IO.puts "Network has achieved convergence."
   end

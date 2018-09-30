@@ -23,7 +23,7 @@ defmodule Proj2.Topology do
     - d:    Number of dimensions in the network space.
     - r:    Proximity radius to use for determining neighbors, must be less than 1.
     - dist: Distribution to use when assigning coordinates to nodes. Possible values:
-              - uniform: Uniform random distribution.
+              - uniform: Uniform random distribution (default).
               - equal:   Equidistant (non-random) distribution.
   """
   def proximity(nodes, d, r, dist \\ :uniform) do
@@ -38,8 +38,8 @@ defmodule Proj2.Topology do
   end
 
   @doc """
-  Defines a d-dimensional grid network.
-  The number of nodes need not be an exact power of the dimension, although this may create a strange topology when using circular dimensions.
+  Defines an orthogonal grid network in d dimensions.
+  The dimensional root of the number of nodes need not be an integer, although this may create a strange topology when using circular dimensions.
   
   ## Parameters
     - d:    Dimensionality of the grid. For example d = 1 creates a line, d = 3 creates a cube, and d > 3 creates a hypercube.
@@ -56,6 +56,10 @@ defmodule Proj2.Topology do
   end
   
   ## Helper functions
+  
+  defp add_neighbors(nodes), do: Enum.map(nodes, &({&1, []}))
+  
+  defp strip_neighbors(nodes), do: Enum.map(nodes, &(elem(&1, 0)))
   
   defp get_coords(n, d, :uniform) do
     for _ <- 1..n do
@@ -104,14 +108,30 @@ defmodule Proj2.Topology do
 	[x] ++ calc_dimensions(n/x, d-1)
   end
   
+  defp connect_grid(space, dims, _mod) when length(dims) == 0, do: space
+  
+  defp connect_grid(space, dims, mod) do
+    space
+	  |> Enum.chunk_every(hd(dims))
+	  |> Enum.map(&(connect_line(&1, mod)))
+	  |> list_pivot()
+	  |> Enum.flat_map(&(connect_grid(&1, tl(dims), mod)))
+  end
+  
   defp connect_line(nodes, _mod) when length(nodes) < 2, do: nodes
+  
+  defp connect_line(nodes, _mod) when length(nodes) == 2 do
+    [{node1, nbrs1}, {node2, nbrs2}] = nodes
+	[{node1, [node2] ++ nbrs1}, {node2, [node1] ++ nbrs2}]
+  end
   
   defp connect_line(nodes, mod) do
     nodes
       |> Enum.map_reduce(
-	       (case mod do 
-		     true  -> {[elem(List.last(nodes), 0)], strip_neighbors(tl(nodes) ++ [hd(nodes)])}
-			 false -> {[], strip_neighbors(tl(nodes))}
+	       (if mod do 
+		     {[elem(List.last(nodes), 0)], strip_neighbors(tl(nodes) ++ [hd(nodes)])}
+		   else
+			 {[], strip_neighbors(tl(nodes))}
 		   end),
 		   fn {node, neighbors}, {left, tail} ->
 	         {{node,
@@ -129,37 +149,21 @@ defmodule Proj2.Topology do
 		 end)
   end
   
-  defp connect_grid(space, dims, _mod) when length(dims) == 0, do: space
-  
-  defp connect_grid(space, dims, mod) do
-    space
-	  |> Enum.chunk_every(hd(dims))
-	  |> Enum.map(&(connect_line(&1, mod)))
-	  |> list_pivot()
-	  |> Enum.flat_map(&(connect_grid(&1, tl(dims), mod)))
-  end
-  
-  defp add_neighbors(nodes), do: Enum.map(nodes, &({&1, []}))
-  
-  defp strip_neighbors(nodes), do: Enum.map(nodes, &(elem(&1, 0)))
-  
-  defp randomize(nodes, flag) when flag do
+  defp randomize(nodes, rand) when rand do
     nodes
 	  |> Enum.shuffle()
 	  |> pair_up([])
   end
   
-  defp randomize(nodes, _flag), do: nodes
+  defp randomize(nodes, _rand), do: nodes
   
   defp pair_up(nodes, pairs) when length(nodes) < 2, do: pairs ++ nodes
   
   defp pair_up(nodes, pairs) do
-    [{node1, nbrs1}, {node2, nbrs2}] = Enum.take(nodes, 2)
-	cond do
-	  node2 in nbrs1 ->
+	if elem(Enum.at(nodes, 1), 0) in elem(Enum.at(nodes, 0), 1) do
 	    pair_up(Enum.shuffle(nodes), pairs)
-	  true ->
-	    pair_up(Enum.drop(nodes, 2), [{node1, nbrs1 ++ [node2]}, {node2, nbrs2 ++ [node1]}] ++ pairs)
+	else
+	    pair_up(Enum.drop(nodes, 2), connect_line(Enum.take(nodes, 2), nil) ++ pairs)
 	end
   end
 

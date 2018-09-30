@@ -1,28 +1,34 @@
 defmodule Proj2.Messenger do
   @moduledoc """
-  Documentation for Proj2.Messenger
+  Defines a simple message-passing implementation, where messages take the form of atoms.
   
-  The functions in this module define various gossip modalities.
-  Each function takes a list of nodes as input, and outputs a list of tuples in the form {node, neighbors}.
+  ## Gossip content
+  
+  Each node maintains a map of messages received and the number of times each has been received. When gossiping, the node sends a list of all received messages.
+  When a new message is received, it is added to the map. The message's counter is incremented each time the message is received again.
+  
+  ## Convergence
+  
+  When the counter for all messages in the map exceeds a certain value, the node converges.
   """
+  def init(), do: %{}
   
-  @doc """
-  Defines a simple message-passing implementation.
-  Each node maintains a list of messages received. When gossiping, the node sends a list of all received messages and increments its termination counter.
-  When a new message is received, it is appended to the list and the termination counter is reset. Duplicate messages are ignored.
-  When the termination counter reaches 10, the node terminates as converged.
-  """
-  def tx_fn({msgs, count}) do
-    {{msgs, count+1}, msgs}
+  def tx_fn(msgs) do
+    {msgs, Map.keys(msgs)}
   end
   
-  def rcv_fn({msgs, count}, msg) do
-    new_msgs = Enum.dedup(msgs ++ msg)
-	if length(new_msgs) > length(msgs), do: count = 0
-	{new_msgs, count}
+  def rcv_fn(msgs, msg) when length(msg) == 0, do: msgs
+  
+  def rcv_fn(msgs, msg) do
+    Map.update(rcv_fn(msgs, tl(msg)), hd(msg), 1, &(&1+1))
   end
   
-  def kill_fn({msgs, count}) do
-    if count < 10, do: {:ok, {msgs, count}}, else: {:kill, {msgs, count}}
+  def mode_fn(:send, _), do: :active
+  
+  def mode_fn(:receive, msgs) do
+    Enum.reduce(Map.values(msgs), :active, fn val, mode ->
+	  if val > Application.get_env(:proj2, :msg_count), do: :converged, else: mode
+	end)
   end
+
 end

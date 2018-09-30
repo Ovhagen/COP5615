@@ -1,20 +1,24 @@
-numNodes = String.to_integer(hd(System.argv))
+{numNodes, [topology]} = {String.to_integer(hd(System.argv)), tl(System.argv)}
 
 IO.puts "Starting network manager and observer..."
 Process.flag :trap_exit, true
 Proj2.NetworkManager.start_link()
-Proj2.Observer.start_link([])
+Proj2.Observer.start_link()
 
 IO.puts "Starting #{numNodes} gossip nodes..."
-{:ok, [node | _nodes]} = Proj2.NetworkManager.start_children(
-                           (for _n <- 1..numNodes, do: {[], 0}),
-						   &Proj2.Messenger.tx_fn/1,
-						   &Proj2.Messenger.rcv_fn/2,
-						   &Proj2.Messenger.kill_fn/1)
+{:ok, [node | _nodes]} = Proj2.NetworkManager.start_children(Proj2.Messenger, List.duplicate([], numNodes))
+:ok = Proj2.Observer.monitor_network(Proj2.NetworkManager)
 
 IO.puts "Setting network topology..."
-:ok = Proj2.Observer.monitor_network(Proj2.NetworkManager)
-:ok = Proj2.NetworkManager.set_network(&Proj2.Topology.grid_2d/1)
+:ok = Proj2.NetworkManager.set_network(
+  case topology do
+    "full"   -> &Proj2.Topology.full/1
+    "3D"     -> &(Proj2.Topology.grid(&1, 3))
+    "rand2D" -> &(Proj2.Topology.proximity(&1, 2, 0.1))
+    "sphere" -> &(Proj2.Topology.grid(&1, 2, :true))
+    "line"   -> &(Proj2.Topology.grid(&1, 1))
+    "imp2D"  -> &(Proj2.Topology.grid(&1, 1, :false, :true))
+  end)
 
 IO.puts "Starting gossip..."
 {time, _} = :timer.tc(fn ->

@@ -4,7 +4,7 @@ defmodule Proj2.GossipNodeTest do
   setup do
     tx_fn =   fn x -> {x, 1} end
 	rcv_fn =  fn x, y -> x+y end
-	kill_fn = fn x -> if x < 10, do: {:ok, x}, else: {:kill, x} end
+	mode_fn = fn x -> if x < 10, do: {:ok, x}, else: {:kill, x} end
 	nodes = [:node1, :node2, :node3]
 	  |> Enum.map(fn node ->
 	       %{id: node,
@@ -16,7 +16,7 @@ defmodule Proj2.GossipNodeTest do
 				  neighbors: [],
 				  tx_fn:     tx_fn,
 				  rcv_fn:    rcv_fn,
-				  kill_fn:   kill_fn
+				  mode_fn:   mode_fn
 			   }]
 			 }
 		   } end)

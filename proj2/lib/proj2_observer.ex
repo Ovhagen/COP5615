@@ -32,7 +32,7 @@ defmodule Proj2.Observer do
   """
   @impl true
   def init(from) do
-    {:ok, %{pids: %{}, from: from, data: []}}
+    {:ok, %{pids: %{}, from: from, data: [], converged: :false}}
   end
 
   @doc """
@@ -45,6 +45,12 @@ defmodule Proj2.Observer do
 	    |> Enum.map(fn {:undefined, pid, _type, _modules} -> pid end)
 	    |> Map.new(fn pid -> {pid, :ok} end))}
   end
+  
+  @doc """
+  Handle request to check if network has converged.
+  """
+  @impl true
+  def handle_call(:converged?, _from, state), do: {:reply, Map.get(state, :converged?), state}
   
   @doc """
   Record convergence of monitored nodes.

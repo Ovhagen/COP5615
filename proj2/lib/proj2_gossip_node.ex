@@ -102,9 +102,9 @@ defmodule Proj2.GossipNode do
 	Process.send_after(self(), :transmit, get_delay())
 	{:noreply,
       state
-		|> Map.put(:mode, mode_fn.(:send, mode, data))
-		|> Map.put(:data, data)
-		|> Map.put(:sent, sent+1),
+	   |> Map.put(:mode, mode_fn.(:send, mode, data))
+	   |> Map.put(:data, data)
+	   |> Map.put(:sent, sent+1),
 	  {:continue, mode}}
   end
   

@@ -159,6 +159,14 @@ defmodule Proj2.Topology do
   
   defp pair_up(nodes, pairs) when length(nodes) < 2, do: pairs ++ nodes
   
+  defp pair_up(nodes, pairs) when length(nodes) == 2 do
+    if elem(Enum.at(nodes, 1), 0) in elem(Enum.at(nodes, 0), 1) do
+	  pairs ++ nodes
+	else
+	  pair_up(Enum.drop(nodes, 2), connect_line(Enum.take(nodes, 2), nil) ++ pairs)
+	end
+  end
+  
   defp pair_up(nodes, pairs) do
 	if elem(Enum.at(nodes, 1), 0) in elem(Enum.at(nodes, 0), 1) do
 	    pair_up(Enum.shuffle(nodes), pairs)

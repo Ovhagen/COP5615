@@ -24,17 +24,17 @@ defmodule Proj2.PushSum do
 	  else
 	    count + 1
 	  end
-    {{v/2, w/2, r, count}, {v/2, w/2}}
+    {{v/2, w/2, v/w, count}, {v/2, w/2}}
   end
   
   def rcv_fn({v, w, _r, count}, {v2, w2}) do
-    {v + v2, w + w2, v / w, count}
+    {v+v2, w+w2, v/w, count}
   end
   
-  def mode_fn(:send, {_, _, _, count}) do
-    if count < Application.get_env(:proj2, :ps_count), do: :active, else: :converged
+  def mode_fn(:send, _mode, {_, _, _, count}) do
+    if count < Application.get_env(:proj2, :ps_count), do: :active, else: :stopped
   end
   
-  def mode_fn(:receive, _state), do: :active
+  def mode_fn(:receive, _mode, _state), do: :active
   
 end

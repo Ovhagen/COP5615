@@ -23,12 +23,14 @@ defmodule Proj2.Messenger do
     Map.update(rcv_fn(msgs, tl(msg)), hd(msg), 1, &(&1+1))
   end
   
-  def mode_fn(:send, _), do: :active
+  def mode_fn(:send, mode, _msgs), do: mode
   
-  def mode_fn(:receive, msgs) do
-    Enum.reduce(Map.values(msgs), :active, fn val, mode ->
-	  if val > Application.get_env(:proj2, :msg_count), do: :converged, else: mode
+  def mode_fn(:receive, :converged, msgs) do
+    Enum.reduce_while(Map.values(msgs), :converged, fn x, mode ->
+	  if x < Application.get_env(:proj2, :msg_count), do: {:cont, mode}, else: {:halt, :stopped}
 	end)
   end
+  
+  def mode_fn(:receive, _mode, _msgs), do: :converged
 
 end

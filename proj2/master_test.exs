@@ -5,7 +5,7 @@ algorithm = hd(System.argv)
 Proj2.NetworkManager.start_link()
 Proj2.Observer.start_link(self())
 
-(for n <- 3..5, do: trunc(:math.pow(2, n)))
+(for n <- 3..13, do: trunc(:math.pow(2, n)))
   |> Enum.flat_map(fn n ->
        (for t <- ["full", "3D", "rand2D", "sphere", "line", "imp2D"], do: [t, algorithm, 10])
          |> Enum.map(fn tail -> [n] ++ tail end)

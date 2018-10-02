@@ -1,6 +1,6 @@
-# Project 1
+# Project 2
 
-This is project 1 in the course COP5615 Distributed Operating System Principles.
+This is project 2 in the course COP5615 Distributed Operating System Principles.
 
 In this project we implemented the gossip and push-sum algorithms over networks of arbitrary size with various network topologies.
 
@@ -67,9 +67,9 @@ Imperfect Line | 32,768 | 29,654,700
 
 Topology | Size | Messages to convergence
 --- | ---:| ---:
-Full | 10,000 | 
+Full | 10,000 | 478433
 3D Grid | 16,384 | 286,592
 Random 2D Grid | 16,384 | 350,931
 Sphere |  | 
 Line | 1,024 | 110,897
-Imperfect Line |  | 
+Imperfect Line | 65,536 | 6,442,885

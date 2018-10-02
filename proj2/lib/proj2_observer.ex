@@ -80,11 +80,11 @@ defmodule Proj2.Observer do
     if converged?(Map.values(pids)) do
 	  send from, {:converged,
 	               data,
-	               Task.async_stream(Map.keys(pids), &(Proj2.GossipNode.get(&1, :sent)))
+	               Task.async_stream(Map.keys(pids), &(Proj2.GossipNode.get(&1, :sent, :infinity)), timeout: 10*length(Map.keys(pids)))
 				     |> Enum.map(fn {:ok, n} -> n end)
 	                 |> Enum.sum()}
 	end
-	{:noreply, state, 5000}
+	{:noreply, state, 10_000}
   end
   
   defp converged?(nodes) when length(nodes) == 0, do: :true

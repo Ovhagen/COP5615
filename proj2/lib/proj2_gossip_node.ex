@@ -1,6 +1,17 @@
 defmodule Proj2.GossipNode do
   @moduledoc """
-  Documentation for Proj2.GossipNode
+  The GossipNode is the actor that sends and receives gossip.
+  
+  The GossipNode is implemented generically, so any arbitrary gossip-style algorithm can be run on top of it.
+  A GossipNode requires four functions:
+    - init:    Generates an initial data state to be used when starting a GossipNode. Any number of arguments as needed to generate the desired state.
+    - tx_fn:   Function which is invoked on the current data to determine the data to send to neighboring nodes while gossiping.
+               Must take one argument (the current data) and output a tuple with the new data and the data to send.
+    - rcv_fn:  Function which is invoked on the current data and the data received during gossiping.
+               Must take two arguments (current data and received data) and output the new data.
+    - mode_fn: Function which is invoked after both transmitting and receiving to determine continuing mode of operation.
+               Must take an atom (:send or :receive) and the current state as arguments, and return an atom representing the current mode of operation.
+			   Acceptable modes of operation are :passive, :ac
   """
   use GenServer
   
@@ -46,16 +57,22 @@ defmodule Proj2.GossipNode do
     GenServer.cast(node, {:gossip, gossip})
   end
   
-  def get(node, key) do
-    GenServer.call(node, {:get, key})
+  @doc """
+  Retrieve a value from a GossipNode. Can handle a single key or a list of keys.
+  """
+  def get(node, key, timeout \\ 5000) do
+    GenServer.call(node, {:get, key}, timeout)
+  end
+  
+  @doc """
+  Update a value in a GossipNode, using the provided function. Can handle a single key and function, or a list of {key, function} tuples.
+  """
+  def update(node, key_fun) when is_list(key_fun) do
+    GenServer.call(node, {:update, key_fun})
   end
   
   def update(node, key, fun) do
     GenServer.call(node, {:update, key, fun})
-  end
-  
-  def update(node, key_fun) when is_list(key_fun) do
-    GenServer.call(node, {:update, key_fun})
   end
   
   ## Server Callbacks
@@ -89,7 +106,7 @@ defmodule Proj2.GossipNode do
   
   @doc """
   Handle requests to transmit state to a neighbor.
-  Generates the gossip based on the current state and casts it to a random neighbor. Then, checks for the kill condition.
+  Generates the gossip based on the current state and casts it to a random neighbor. Then, updates the operating mode and calls handle_continue to check for convergence.
   """
   @impl true
   def handle_info(_, %{mode: :stopped} = state), do: {:noreply, state}
@@ -110,7 +127,7 @@ defmodule Proj2.GossipNode do
   
   @doc """
   Handle incoming gossip.
-  Changes the current state based on the received gossip, then checks for kill condition.
+  Changes the current state based on the received gossip, updates the operating mode, and calls handle_continue to check for convergence.
   Nodes that receive gossip will become active and start transmitting.
   """
   @impl true
@@ -141,6 +158,8 @@ defmodule Proj2.GossipNode do
   
   def handle_continue(_, state), do: {:noreply, state}
   
+  # Generates a random delay, according to an exponential distribution.
+
   defp get_delay() do
     :rand.uniform()
 	  |> :math.exp()

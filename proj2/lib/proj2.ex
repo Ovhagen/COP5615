@@ -1,13 +1,10 @@
 defmodule Proj2 do
   @moduledoc """
-  This is project 2 in the course COP5615 Distributed Operating System Principles.
-
-
-  Authors: Pontus Ovhagen & James Howes
+  This module contains functions to support project specifications and batch processing.
   """
 
   @doc """
-  Functions for running a test gossip, and returning the result
+  Run a test gossip, and return the result
   """
   def test_run(nodes, topology, "gossip") do
     :ok = Proj2.NetworkManager.set_network(
@@ -44,6 +41,9 @@ defmodule Proj2 do
     end
   end
   
+  @doc """
+  Run multiple tests and return the aggregated results.
+  """
   def repeat_test(numNodes, topology, algorithm, n), do: repeat_test(numNodes, topology, algorithm, n, [])
   
   def repeat_test(_numNodes, _topology, _algorithm, n, results) when n == 0, do: results

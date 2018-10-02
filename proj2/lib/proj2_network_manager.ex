@@ -18,14 +18,8 @@ defmodule Proj2.NetworkManager do
   @doc """
   Starts a new GossipNode under the NetworkManager.
   
-  ## Parameters
-    - data:    Initial state.
-    - tx_fn:   Function which is invoked on the current state to determine the data to send to neighboring nodes while gossiping.
-	           Must take one argument (the current state) and output a tuple with the new state and the data to send.
-    - rcv_fn:  Function which is invoked on the current state and the data received during gossiping.
-               Must take two arguments (current state and received data) and output the new state.
-    - mode_fn: Function which is invoked after both transmitting and receiving to determine continuing mode of operation.
-               Must take an atom (:send or :receive) and the current state as arguments, and return an atom representing the current mode of operation.
+  start_child/4 takes all the parameters required to initialize a GossipNode
+  start_child/2 takes a module name which contains the required functions, as well as the parameters to pass to the init function.
   """
   def start_child(data, tx_fn, rcv_fn, mode_fn) do
     DynamicSupervisor.start_child(__MODULE__, Supervisor.child_spec(
@@ -48,12 +42,9 @@ defmodule Proj2.NetworkManager do
   end
   
   @doc """
-  Starts multiple new GossipNodes under the NetworkManager, all with the same configuration. Number of nodes to start
-  is determined by the length of the data parameter.
+  Starts multiple new GossipNodes under the NetworkManager.
   
-  ## Parameters
-    - data:  List containing initial data. One node will be started for each element.
-    - See start_child/4 for explanation of remaining parameters.
+  
   """
   def start_children(data, tx_fn, rcv_fn, mode_fn) do
     data

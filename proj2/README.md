@@ -71,5 +71,5 @@ Full | 10,000 |
 3D Grid | 16,384 | 286,592
 Random 2D Grid | 16,384 | 350,931
 Sphere |  | 
-Line |  | 
+Line | 1,024 | 110,897
 Imperfect Line |  | 

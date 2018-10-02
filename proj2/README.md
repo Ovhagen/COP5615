@@ -23,7 +23,7 @@ where `numNodes` is an integer > 1, `topology` is one of `full`, `3D`, `rand2D`,
 
 All project requirements have been implemented fully, with one slight modification to the spec in order to improve the performance of the push-sum algorithm.
 
-# Topologies
+### Topologies
 
 The Proj2.Topology module provides functions which can generate all of the topologies in the project spec and many more.
 
@@ -33,7 +33,7 @@ The `proximity/4` function produces a proximity-based topology as in the random 
 
 > Note that proximity-based topologies are not checked for connectedness. Therefore, random grid networks with too few nodes (~300 or fewer, for a 2D grid) are unlikely to be connected and will fail to achieve convergence.
 
-# Communication algorithms
+### Communication algorithms
 
 The gossip algorithm is implemented as described in the specification. Since the specification described __termination__ but not convergence, we assumed that the network converged when every node had received the message at least once.
 
@@ -41,7 +41,7 @@ The push-sum algorithm is implemented as described, with one modification: Nodes
 
 Furthermore, our gossip nodes are generic so many different algorithms can be implemented. See the Proj2.Messenger and Proj2.PushSum modules for examples of how to configure the nodes.
 
-# Configuration
+### Configuration
 
 Additionally, we made accommodations to configure the program for alternative operation, using the `config/config.exs` file:
 
@@ -52,7 +52,7 @@ Additionally, we made accommodations to configure the program for alternative op
 
 ## Largest networks handled
 
-# Gossip
+### Gossip
 
 Topology | Size | Messages to convergence
 --- | ---:| ---:
@@ -63,7 +63,7 @@ Sphere | 16,384 | 10,105,995
 Line | 4,096 | 2,195,643
 Imperfect Line | 32,768 | 29,654,700
 
-# Push-Sum
+### Push-Sum
 
 Topology | Size | Messages to convergence
 --- | ---:| ---:

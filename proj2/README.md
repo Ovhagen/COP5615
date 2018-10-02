@@ -67,9 +67,9 @@ Imperfect Line | 32,768 | 29,654,700
 
 Topology | Size | Messages to convergence
 --- | ---:| ---:
-Full | 10,000 | 478433
-3D Grid | 16,384 | 286,592
-Random 2D Grid | 16,384 | 350,931
-Sphere |  | 
+Full | 10,000 | 478,433
+3D Grid | 32,768 | 2,543,005
+Random 2D Grid | 16,384 | 727,928
+Sphere | 32,768 | 2,706,382
 Line | 1,024 | 110,897
 Imperfect Line | 65,536 | 6,442,885

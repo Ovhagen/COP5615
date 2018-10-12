@@ -14,14 +14,7 @@ defmodule Proj3.ChordNode do
   data: A hash table with data stored at the node.
   """
   def start_link() do
-    GenServer.start_link(__MODULE__,
-       %{
-          node_hash: :crypto.hash(:sha, inspect(self())) |> Base.encode16,
-          fingers: List.duplicate(0, 160), #Upper-bound should be m = nbrOfNodes
-          predecessor: nil,
-          data: %{}
-        }
-      )
+    GenServer.start_link(__MODULE__, [])
   end
 
   @doc """
@@ -65,10 +58,7 @@ defmodule Proj3.ChordNode do
   Asks node n to find the successor of id.
   """
   def find_successor(n, id) do
-    case GenServer.call(n, {:successor, id}) do
-	  {:ok, node}       -> node
-	  {:continue, node} -> find_successor(node, id)
-	  end
+    GenServer.call(n, {:successor, id})
   end
 
   @doc """
@@ -91,112 +81,64 @@ defmodule Proj3.ChordNode do
 
   ## Server Callbacks
 
-  ##########################Chord calls#################################
+  @doc """
+  ChordNode initialization.
+  Sets the id to the SHA-1 hash of the node's PID.
+  """
+  @impl true
+  def init(_args) do
+    pid = self()
+    {:ok,
+      %{
+        nid: get_id(inspect(pid)),
+        predecessor: nil,
+        fingers: List.duplicate(pid, Application.get_env(:proj3, :id_bits)),
+        data: %{}
+      }
+    }
+  end
 
   @doc """
   Handles call for find_successor.
   """
-  def handle_call({:successor, id}, _from, state) do
-    n = Map.get(:node_hash)
-    #Defines half-closed interval (n, id]
-    if id in (n+1)..id do
-      #Return successor node in fingers[1]
-      {:reply, {:ok, get([:fingers, 1])}, state}
+  def handle_call({:successor, client, id}, _from, %{nid: nid, fingers: fingers} = state) do
+    if check_id(id, nid, get_id(hd(fingers))) do
+      # Reply to original client with successor
+      GenServer.reply(client, {:ok, hd(fingers)})
+      {:reply, :ok, state}
     else
-      np = closest_preceding_node(id)
-      {:reply, {:continue, np}, state}
+      # Forward request along the chord
+      {:reply, :ok, state, {:continue, {:successor, client, id}}}
     end
   end
-
-#########################################################################
-
-  @doc """
-  GenServer initialization.
-  """
-  @impl true
-  def init(state) do
-    {:ok, state}
+  
+  def handle_call({:successor, id}, from, %{nid: nid, fingers: fingers} = state) do
+    if id in (nid+1)..get_id(hd(fingers)) do
+      # Reply with successor
+      {:reply, {:ok, hd(fingers)}, state}
+    else
+      # Forward request along the chord
+      {:noreply, state, {:continue, {:successor, from, id}}}
+    end
   end
-
-  @doc """
-  Handle requests for state.
-  """
-  def handle_call({:get, keys}, _from, state) when is_list(keys) do
-    {:reply, Enum.map(keys, &(Map.get(state, &1))), state}
+  
+  def handle_continue({:successor, client, id}, %{fingers: fingers} = state) do
+    node = closest_preceding_node(id)
+    try do
+      :ok = GenServer.call(node, {:successor, client, id})
+      {:noreply, state}
+    catch
+      :exit, value ->
+        # Node is dead; update the finger table and try again
+        
+    end
   end
+  
+  def check_id() do
 
-  def handle_call({:get, key}, _from, state), do: {:reply, Map.get(state, key), state}
-
-  @doc """
-  Handle updates to state.
-  """
-  @impl true
-  def handle_call({:update, key_fun}, _from, state) when is_list(key_fun) do
-    {:reply, :ok, Enum.reduce(key_fun, state, &(Map.update!(&2, elem(&1, 0), elem(&1, 1))))}
-  end
-
-  def handle_call({:update, key, fun}, _from, state), do: {:reply, :ok, Map.update!(state, key, fun)}
-
-  @doc """
-  Handle requests to transmit state to a neighbor.
-  Generates the gossip based on the current state and casts it to a random neighbor. Then, updates the operating mode and calls handle_continue to check for convergence.
-  """
-  @impl true
-  def handle_info(_, %{mode: :stopped} = state), do: {:noreply, state}
-
-  def handle_info(:transmit, %{neighbors: neighbors} = state) when length(neighbors) == 0, do: {:noreply, Map.put(state, :mode, :stopped)}
-
-  def handle_info(:transmit, %{mode: mode, data: data, neighbors: neighbors, sent: sent, tx_fn: tx_fn, mode_fn: mode_fn} = state) do
-    {data, gossip} = tx_fn.(data)
-    gossip(Enum.random(neighbors), gossip)
-	Process.send_after(self(), :transmit, get_delay())
-	{:noreply,
-      state
-	   |> Map.put(:mode, mode_fn.(:send, mode, data))
-	   |> Map.put(:data, data)
-	   |> Map.put(:sent, sent+1),
-	  {:continue, mode}}
-  end
-
-  @doc """
-  Handle incoming gossip.
-  Changes the current state based on the received gossip, updates the operating mode, and calls handle_continue to check for convergence.
-  Nodes that receive gossip will become active and start transmitting.
-  """
-  @impl true
-  def handle_cast(_, %{mode: :stopped} = state), do: {:noreply, state}
-
-  def handle_cast({:gossip, gossip}, %{mode: mode, data: data, rcv_fn: rcv_fn, mode_fn: mode_fn} = state) do
-	if mode == :passive, do: send(self(), :transmit)
-	{:noreply,
-	  state
-	    |> Map.put(:mode, mode_fn.(:receive, (if mode == :passive, do: :active, else: mode), data))
-	    |> Map.put(:data, rcv_fn.(data, gossip)),
-	  {:continue, mode}}
-  end
-
-  @doc """
-  After sending or receiving gossip, this function is called to check if the node has converged or stopped.
-  If the node has :converged, or :stopped before convergence, then the Observer is notified.
-  """
-  @impl true
-  def handle_continue(prev_mode, %{mode: mode} = state) when mode == prev_mode, do: {:noreply, state}
-
-  def handle_continue(prev_mode, %{mode: mode, data: data} = state)
-  when mode == :converged
-  or   mode == :stopped and prev_mode != :converged do
-    :ok = GenServer.cast(Proj2.Observer, {:converged, self(), data})
-	{:noreply, state}
-  end
-
-  def handle_continue(_, state), do: {:noreply, state}
-
-  # Generates a random delay, according to an exponential distribution.
-
-  defp get_delay() do
-    :rand.uniform()
-	  |> :math.exp()
-	  |> Kernel.*(Application.get_env(:proj2, :delay))
-	  |> trunc()
+  defp get_id(n) do
+    bits = Application.get_env(:proj3, :id_bits)
+    <<id::integer-size(bits), _::binary>> = :crypto.hash(:sha, n)
+    id
   end
 end

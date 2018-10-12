@@ -17,33 +17,6 @@ defmodule Proj3.ChordNode do
     GenServer.start_link(__MODULE__, [])
   end
 
-  @doc """
-  Gets a current value in the state.
-  Keys define sequence of keys to access.
-  """
-  def get(keys) do
-    state |> get_in(keys)
-  end
-
-  @doc """
-  Updates the state with a new value.
-  Keys define sequence of keys to access.
-  Value is the new value to update with.
-  """
-  def put(keys, value) do
-    state |> put_in(keys, value)
-  end
-
-  @doc """
-  Creates a chord ring.
-  Called by the first node in a new chord network.
-  Sets the successor in fingers[1] to itself with corresponding hash.
-  Maps the node's hash with its own pid as a tuple.
-  """
-  def create() do
-    state = put([:fingers, 1], {get([:node_hash]), self()})
-  end
-
   def join()
 
   def stabilize()
@@ -88,11 +61,12 @@ defmodule Proj3.ChordNode do
   @impl true
   def init(_args) do
     pid = self()
+    id = get_id(inspect(pid))
     {:ok,
       %{
-        nid: get_id(inspect(pid)),
+        nid: id,
         predecessor: nil,
-        fingers: List.duplicate(pid, Application.get_env(:proj3, :id_bits)),
+        fingers: List.duplicate(%{pid: pid, id: id}, Application.get_env(:proj3, :id_bits)),
         data: %{}
       }
     }
@@ -102,9 +76,9 @@ defmodule Proj3.ChordNode do
   Handles call for find_successor.
   """
   def handle_call({:successor, client, id}, _from, %{nid: nid, fingers: fingers} = state) do
-    if check_id(id, nid, get_id(hd(fingers))) do
+    if check_id(id, nid, get_in(hd(fingers), :id)) do
       # Reply to original client with successor
-      GenServer.reply(client, {:ok, hd(fingers)})
+      GenServer.reply(client, {:ok, get_in(hd(fingers), :pid)})
       {:reply, :ok, state}
     else
       # Forward request along the chord
@@ -113,32 +87,61 @@ defmodule Proj3.ChordNode do
   end
   
   def handle_call({:successor, id}, from, %{nid: nid, fingers: fingers} = state) do
-    if id in (nid+1)..get_id(hd(fingers)) do
+    if check_id(id, nid, get_in(hd(fingers), :id)) do
       # Reply with successor
-      {:reply, {:ok, hd(fingers)}, state}
+      {:reply, {:ok, get_in(hd(fingers), :pid)}, state}
     else
       # Forward request along the chord
       {:noreply, state, {:continue, {:successor, from, id}}}
     end
   end
   
-  def handle_continue({:successor, client, id}, %{fingers: fingers} = state) do
-    node = closest_preceding_node(id)
+  def handle_continue({:successor, client, id}, %{nid: nid, fingers: fingers} = state) do
+    node = closest_preceding_node(id, nid, fingers)
     try do
       :ok = GenServer.call(node, {:successor, client, id})
       {:noreply, state}
     catch
       :exit, value ->
         # Node is dead; update the finger table and try again
-        
+        {
+          :noreply,
+          # Replace all occurrences of the dead node with its predecessor
+          Map.update(state, :fingers, fn f ->
+            Enum.map_reduce(f, self(), &(if get_in(&1, :pid) == node, do: {&2, &2}, else: {&1, &1}))
+              |> elem(0)
+            end)),
+          # Callback to continue the search
+          {:continue, {:successor, from, id}}
+        }
     end
   end
   
-  def check_id() do
+  # Checks if id is between n and s, accounting for the modulo.
+  defp check_id(id, n, s) do
+    mod = :math.pow(2, Application.get_env(:proj3, :id_bits))
+    if n > s do
+      (id > n and id <= s+mod) or (id+mod > n and id <= s)
+    else
+      id > n and id <= s
+    end
+  end
 
+  # Generates a unique, random id by SHA hashing the input string and truncating to the configured bit length
   defp get_id(n) do
     bits = Application.get_env(:proj3, :id_bits)
     <<id::integer-size(bits), _::binary>> = :crypto.hash(:sha, n)
     id
+  end
+  
+  # Searches fingers for the furthest node that precedes the id
+  defp closest_preceding_node(id, nid, fingers) do
+    Enum.reverse(fingers)
+      |> Enum.reduce_while(self(), fn n, f ->
+           if check_id(get_in(n, :id), nid, id-1) do
+             {:halt, get_in(n, :pid)}
+           else
+             {:cont, f}
+           end)
   end
 end

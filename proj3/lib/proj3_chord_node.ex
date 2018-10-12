@@ -13,7 +13,7 @@ defmodule Proj3.ChordNode do
   predecessor: Reference to the previous node in the chord ring. (just the hash?)
   data: A hash table with data stored at the node.
   """
-  def start_link() do
+  def start_link([]) do
     GenServer.start_link(__MODULE__, [])
   end
 
@@ -37,9 +37,9 @@ defmodule Proj3.ChordNode do
   @doc """
   Searches the local table for the highest predecessor of id.
   """
-  def closest_preceding_node(id, i) when i == 0 do
-    self()
-  end
+  # def closest_preceding_node(id, i) when i == 0 do
+  #   self()
+  # end
 
   # def closest_preceding_node(id, i \\ get([:fingers]) |> length()) do
   #   n = get([:node_hash])
@@ -62,6 +62,7 @@ defmodule Proj3.ChordNode do
   def init(_args) do
     pid = self()
     id = get_id(inspect(pid))
+    IO.puts "Child_Init: #{inspect(pid)} with id #{id}"
     {:ok,
       %{
         nid: id,

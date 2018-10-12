@@ -41,16 +41,16 @@ defmodule Proj3.ChordNode do
     self()
   end
 
-  def closest_preceding_node(id, i \\ get([:fingers]) |> length()) do
-    n = get([:node_hash])
-    finger_i = get([:fingers, i]) |> elem(0)
-    if finger_i in (n+1)..id do
-      #Return the pid of the finger
-      finger_i |> elem(1)
-    else
-      closest_preceding_node(id, i-1)
-    end
-  end
+  # def closest_preceding_node(id, i \\ get([:fingers]) |> length()) do
+  #   n = get([:node_hash])
+  #   finger_i = get([:fingers, i]) |> elem(0)
+  #   if finger_i in (n+1)..id do
+  #     #Return the pid of the finger
+  #     finger_i |> elem(1)
+  #   else
+  #     closest_preceding_node(id, i-1)
+  #   end
+  # end
 
   ## Server Callbacks
 
@@ -85,7 +85,7 @@ defmodule Proj3.ChordNode do
       {:reply, :ok, state, {:continue, {:successor, client, id}}}
     end
   end
-  
+
   def handle_call({:successor, id}, from, %{nid: nid, fingers: fingers} = state) do
     if check_id(id, nid, get_in(hd(fingers), :id)) do
       # Reply with successor
@@ -95,8 +95,8 @@ defmodule Proj3.ChordNode do
       {:noreply, state, {:continue, {:successor, from, id}}}
     end
   end
-  
-  def handle_continue({:successor, client, id}, %{nid: nid, fingers: fingers} = state) do
+
+  def handle_continue({:successor, client, id}, from, %{nid: nid, fingers: fingers} = state) do
     node = closest_preceding_node(id, nid, fingers)
     try do
       :ok = GenServer.call(node, {:successor, client, id})
@@ -110,13 +110,13 @@ defmodule Proj3.ChordNode do
           Map.update(state, :fingers, fn f ->
             Enum.map_reduce(f, self(), &(if get_in(&1, :pid) == node, do: {&2, &2}, else: {&1, &1}))
               |> elem(0)
-            end)),
+            end),
           # Callback to continue the search
           {:continue, {:successor, from, id}}
         }
     end
   end
-  
+
   # Checks if id is between n and s, accounting for the modulo.
   defp check_id(id, n, s) do
     mod = :math.pow(2, Application.get_env(:proj3, :id_bits))
@@ -133,7 +133,7 @@ defmodule Proj3.ChordNode do
     <<id::integer-size(bits), _::binary>> = :crypto.hash(:sha, n)
     id
   end
-  
+
   # Searches fingers for the furthest node that precedes the id
   defp closest_preceding_node(id, nid, fingers) do
     Enum.reverse(fingers)
@@ -142,6 +142,6 @@ defmodule Proj3.ChordNode do
              {:halt, get_in(n, :pid)}
            else
              {:cont, f}
-           end)
+           end end)
   end
 end

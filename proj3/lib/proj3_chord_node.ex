@@ -74,6 +74,8 @@ defmodule Proj3.ChordNode do
 
   @doc """
   Handles call for find_successor.
+  
+  
   """
   def handle_call({:successor, client, id}, _from, %{nid: nid, fingers: fingers} = state) do
     if check_id(id, nid, get_in(hd(fingers), :id)) do
@@ -117,15 +119,13 @@ defmodule Proj3.ChordNode do
     end
   end
   
-  # Checks if id is between n and s, accounting for the modulo.
-  defp check_id(id, n, s) do
-    mod = :math.pow(2, Application.get_env(:proj3, :id_bits))
-    if n > s do
-      (id > n and id <= s+mod) or (id+mod > n and id <= s)
-    else
-      id > n and id <= s
-    end
+  # Returns true if id is in the interval (n, s]. Otherwise returns false.
+  defp check_id(id, n, s) when n > s do
+    check_id(id, n, :math.pow(2, Application.get_env(:proj3, :id_bits))
+      or check_id(id, -1, s)
   end
+  
+  defp check_id(id, n, s), do: id > n and id <= s
 
   # Generates a unique, random id by SHA hashing the input string and truncating to the configured bit length
   defp get_id(n) do

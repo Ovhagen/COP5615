@@ -17,14 +17,24 @@ defmodule Proj3.ChordNode do
 
   @doc """
   Join n to an existing Chord c.
+  
+  The sequence of events is as follows:
+    1. Find the successor of c.
+    2. Place the successor in the first entry of c's finger table.
+    3. Run stabilize on c, which should result in notifying c's successor.
+    4. c's successor receives the notification and responds by attempting to migrate keys.
+    5. Run fix_fingers on c.
   """
   def join(n, c) when n != c, do: GenServer.call(n, {:join, c})
 
   def stabilize()
 
-  def notify()
-
-  def fix_fingers()
+  @doc """
+  Tell n that p might be its predecessor.
+  """
+  def notify(n, p), do: GenServer.cast(n, {:notify, p})
+  
+  def fix_fingers(n), do: send(n, :fix_fingers)
 
   def check_predecessor()
 
@@ -34,7 +44,7 @@ defmodule Proj3.ChordNode do
   """
   def find_successor(n, id) do
     if get_id(n) == id do
-      {:ok, n, 0}
+      {:ok, {n, id}, 0}
     else
       try do
         GenServer.call(n, {:successor, id})
@@ -66,6 +76,22 @@ defmodule Proj3.ChordNode do
       }
     }
   end
+  
+  def handle_call({:join, c}, _from, %{nid: nid} = state) do
+    case find_successor(c, nid) do
+      {:ok, s, _} ->
+        fix_fingers(self())
+        {
+          :reply,
+          :ok,
+          Map.update!(state, :fingers, &([s] ++ tl(&1))),
+          {:continue, :stabilize}
+        }
+      {:error, _} ->
+        # The node did not respond, so the join failed
+        {:reply, {:error, "Join failed: no response from node"}, state}
+    end
+  end
 
   @doc """
   Handles call for find_successor.
@@ -75,16 +101,6 @@ defmodule Proj3.ChordNode do
   
   Since both versions may need to forward a request, that code is moved into a :continue handler.
   """
-  def handle_call({:successor, client, id, count}, _from, %{nid: nid, fingers: fingers} = state) do
-    if between?(id, nid, get_in(hd(fingers), :id)) do
-      # Reply to original client with successor
-      GenServer.reply(client, {:ok, hd(fingers), count})
-      {:reply, :ok, state}
-    else
-      # Forward request along the chord
-      {:reply, :ok, state, {:continue, {:successor, client, id, count}}}
-    end
-  end
 
   def handle_call({:successor, id}, from, %{nid: nid, fingers: fingers} = state) do
     if between?(id, nid, get_in(hd(fingers), :id)) do
@@ -96,79 +112,130 @@ defmodule Proj3.ChordNode do
     end
   end
   
-  def handle_call({:join, c}, _from, %{nid: nid, fingers: fingers} = state) do
-    case find_successor(c, nid) do
-      {:ok, s, _} ->
-        {
-          :reply,
-          :ok,
-          state |> Map.put(:fingers, update_fingers(fingers, s, nid))
-            |> Map.put(:next_finger, get_id(s)-nid+max_id() |> mod(max_id()) |> :math.log2() |> trunc()),
-          {:continue, :stabilize}
-        }
-      {:error, _} ->
-        # The node did not respond, so the join failed
-        {:reply, {:error, "Join failed: no response from node"}, state}
+  def handle_cast({:successor, client, id, count, t}, _from, %{nid: nid, fingers: fingers} = state) do
+    Process.cancel_timer(t)
+    if between?(id, nid, get_in(hd(fingers), :id)) do
+      # Reply to original client with successor
+      GenServer.reply(client, {:ok, hd(fingers), count})
+      {:reply, :ok, state}
+    else
+      # Forward request along the chord
+      {:reply, :ok, state, {:continue, {:successor, client, id, count}}}
     end
   end
+  
+  def handle_cast({:predecessor, from}, %{predecessor: p} = state) do
+    Process.cancel_timer(t)
+    GenServer.cast(from, {:stabilize, p})
+    {:noreply, state}
+  end
+  
+  def handle_cast({:stabilize, p}, %{nid: nid, fingers: fingers} = state) do
+    Process.send_after(self(), :stabilize, Application.get_env(:proj3, :st_delay))
+    fingers = add_finger(fingers, p, nid)
+    GenServer.cast(get_in(hd(fingers), :pid), {:notify, %{pid: self(), id: nid}})
+    {:noreply, Map.put(state, :fingers, fingers)}
+  end
+  
+  def handle_cast({:notify, p}, %{nid: nid, predecessor: q, data: data} = state) do
+    if q and between?(p, q, nid-1) do
+      {
+        :noreply,
+        Map.put(state, :predecessor, p),
+        {:continue, :migrate}
+      }
+    else
+      {:noreply, state}
+    end
+  end
+  
+  @doc """
+  Handles replies from the fix_fingers Task.
+  """
+  def handle_cast({:fix_fingers, {:ok, f, _}}, %{nid: nid, next_finger: next} = state) do
+    Process.send_after(self(), :fix_fingers, Application.get_env(:proj3, :ff_delay))
+    {
+      :noreply,
+      state
+        |> Map.put(:next_finger, next_finger?(get_in(f, :id), nid))
+        |> Map.update!(:fingers, fn fs ->
+             e = Enum.at(fs, next)
+             # If the new finger is further than the old finger, then the old finger must have failed. Remove it first, then add the new finger.
+             if between?(e, nid, f), do: remove_finger(fs, e, nid), else: fs
+               |> add_finger(f, nid)
+           end)
+    }
+  end
+  
+  def handle_info(msg, state), do: {:noreply, state, {:continue, msg}}
 
   @doc """
   Handles forwarding of find_successor requests.
   If the recipient of the forwarded request fails to respond, the forward attempt is repeated with the next best predecessor.
   """
-  def handle_continue({:successor, client, id, count}, %{nid: nid, fingers: fingers} = state) do
+  def handle_continue({:successor, client, id, count} = request, %{nid: nid, fingers: fingers} = state) do
     # Find the closest predecessor in the finger table
     n = closest_preceding_node(fingers, id, nid)
-    try do
-      if get_in(n, :id) == nid do
-        # We are the closest predecessor, so just reply to the client and do not forward the request. This should only happen if every other node has failed.
-        GenServer.reply(client, {:ok, n, count})
-      else
-        # Call the node with the successor request. If the node responds, we can safely exit.
-        :ok = GenServer.call(get_in(n, :pid), {:successor, client, id, count+1})
-      end
+    if get_in(n, :id) == nid do
+      # We are the closest predecessor, so just reply to the client and do not forward the request. This should only happen if every other node has failed.
+      GenServer.reply(client, {:ok, n, count})
       {:noreply, state}
-    catch
-      :exit, _ ->
-        # The call failed so we assume the node has failed and remove it from the finger table, then recurse to try the next best predecessor.
-        {
-          :noreply,
-          # Replace all occurrences of the failed node with its successor
-          Map.update!(state, :fingers, &remove_finger(&1, n, nid)),
-          # Callback to continue the search
-          {:continue, {:successor, client, id, count}}
-        }
+    else
+      # Forward the successor request to the best predecessor. Use a cast to avoid blocking, and set a timer for timeout.
+      t = Process.send_after(self(), {:timeout, n, request}, timeout())
+      GenServer.cast(get_in(n, :pid), {:successor, client, id, count+1, t})
+      {:noreply, state}
     end
   end
   
   @doc """
-  Handles fix_fingers requests.
-  Searches for a successor for the next finger, then 
+  Handles stabilize requests.
   """
-  def handle_continue(:fix_fingers, %{nid: nid, fingers: [s | fingers], next_finger: next} = state) do
-    case find_successor(get_in(s, :pid), nid + :math.pow(2, next)) do
-      {:ok, f, _} ->
-        {
-          :noreply,
-          state
-            |> Map.put(:next_finger, next_finger?(get_in(f, :id), nid))
-            |> Map.update!(:fingers, fn fs ->
-                 e = Enum.at(fs, next)
-                 # If the new finger is further than the old finger, then the old finger must have failed. Remove it first, then add the new finger.
-                 if between?(e, nid, f), do: remove_finger(fs, e, nid), else: fs
-                   |> add_finger(f, nid)
-               end)
-        }
-      {:error, _} ->
-        # The successor has failed. Remove it from the finger table, notify our new successor, and try again.
-        fingers = remove_finger([s] ++ fingers, s)
-        :ok = notify(get_in(hd(fingers), :pid), self())
-        {
-          :noreply,
-          Map.put(state, :fingers, fingers),
-          {:continue, :fix_fingers}
-        }
+  def handle_continue(:stabilize, %{nid: nid, fingers: [s | _]} = state) do
+    t = Process.send_after(self(), {:timeout, s, :stabilize}, timeout())
+    GenServer.cast(get_in(s, :pid), {:predecessor, self(), t})
+    {:noreply, state}
+  end
+  
+  @doc """
+  Handles fix_fingers requests.
+  This procedure requires a call to find_successor, so to avoid blocking the node it is called asynchronously through a Task.
+  Once complete, the result is sent back to the node for handling.
+  """
+  def handle_continue(:fix_fingers, %{nid: nid, next_finger: next} = state) do
+    Task.start(fn ->
+      GenServer.cast(self(), {:fix_fingers, find_successor(self(), :math.pow(2, next) |> Kernel.+(nid) |> rem(max_id()))})
+    end)
+    {:noreply, state}
+  end
+  
+  def handle_continue(:check_predecessor) do
+    
+  end
+  
+  def handle_continue(:migrate, %{nid: nid, predecessor: p, data: data} = state) do
+    keys = data
+      |> Map.keys()
+      |> Enum.filter(&between?(p, get_id(&1), nid))
+    if length(keys) > 0 do
+      {:ok, keys} = GenServer.call(get_in(p, :pid), {:migrate, Map.take(data, keys)})
+      {
+        :noreply,
+        Map.put(state, :data, Map.take(data, Map.keys(data) -- keys))
+      }
+    else
+      {:noreply, state}
     end
+  end
+  
+  def handle_continue({:timeout, n, request}, %{nid: nid} = state) do
+    {
+      :noreply,
+      state,
+        |> Map.update!(:fingers, &remove_finger(&1, n, nid))
+        |> Map.update!(:predecessor, &(if n == &1, do: nil, else: &1 end)),
+      {:continue, request}
+    }
   end
   
   ## Private implementation functions
@@ -176,11 +243,17 @@ defmodule Proj3.ChordNode do
   # Retreives the value of the :id_bits configuration parameter.
   defp id_bits(), do: Application.get_env(:proj3, :id_bits)
   
+  # Retreives the value of the :timeout configuration parameter.
+  defp timeout(), do: Application.get_env(:proj3, :timeout)
+  
   # Returns the modulus of the Chord ids, equal to 2^m where m is the number of id bits.
   defp max_id(), do: :math.pow(2, id_bits())
   
   # Returns true if id is in the interval (n, s]. Otherwise returns false.
-  # For convenience, you can pass a map containing an :id key for any of the parameters.
+  # For convenience, you can pass a pid or a map containing an :id key for any of the parameters.
+  defp between?(id, n, s) when is_pid(id), do: between?(get_id(id), n, s)
+  defp between?(id, n, s) when is_pid(n),  do: between?(id, get_id(n), s)
+  defp between?(id, n, s) when is_pid(s),  do: between?(id, n, get_id(s))
   defp between?(id, n, s) when is_map(id), do: between?(get_in(id, :id), n, s)
   defp between?(id, n, s) when is_map(n),  do: between?(id, get_in(n, :id), s)
   defp between?(id, n, s) when is_map(s),  do: between?(id, n, get_in(s, :id))

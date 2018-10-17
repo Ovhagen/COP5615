@@ -18,7 +18,7 @@ defmodule Proj3.ChordNode do
 
   @doc """
   Join n to an existing Chord c.
-  
+
   The sequence of events is as follows:
     1. Find the successor of c.
     2. Place the successor in the first entry of c's finger table.
@@ -34,7 +34,7 @@ defmodule Proj3.ChordNode do
   Tell n that p might be its predecessor.
   """
   def notify(n, p), do: GenServer.cast(n, {:notify, p})
-  
+
   def fix_fingers(n), do: send(n, :fix_fingers)
 
   def check_predecessor(n), do: send(n, :check_predecessor)
@@ -77,7 +77,7 @@ defmodule Proj3.ChordNode do
       }
     }
   end
-  
+
   @impl true
   def handle_call({:join, c}, _from, %{nid: nid} = state) do
     case find_successor(c, nid) do
@@ -169,7 +169,7 @@ defmodule Proj3.ChordNode do
       {:noreply, state}
     end
   end
-  
+
   @doc """
   Handles replies from the fix_fingers Task.
   """
@@ -215,7 +215,7 @@ defmodule Proj3.ChordNode do
       {:noreply, state}
     end
   end
-  
+
   @doc """
   Handles stabilize requests.
   """
@@ -224,7 +224,7 @@ defmodule Proj3.ChordNode do
     GenServer.cast(get_in(s, :pid), {:predecessor, self(), t})
     {:noreply, state}
   end
-  
+
   @doc """
   Handles fix_fingers requests.
   This procedure requires a call to find_successor, so to avoid blocking the node it is called asynchronously through a Task.
@@ -246,7 +246,7 @@ defmodule Proj3.ChordNode do
     end
     {:noreply, state}
   end
-  
+
   def handle_continue(:migrate, %{nid: nid, predecessor: p, data: data} = state) do
     keys = data
       |> Map.keys()
@@ -258,7 +258,7 @@ defmodule Proj3.ChordNode do
       {:noreply, state}
     end
   end
-  
+
   def handle_continue({:timeout, n, request}, %{nid: nid} = state) do
     {
       :noreply,
@@ -273,13 +273,13 @@ defmodule Proj3.ChordNode do
   def handle_continue(_, state), do: {:noreply, state}
   
   ## Private implementation functions
-  
+
   # Retreives the value of the :id_bits configuration parameter.
   defp id_bits(), do: Application.get_env(:proj3, :id_bits)
-  
+
   # Retreives the value of the :timeout configuration parameter.
   defp timeout(), do: Application.get_env(:proj3, :timeout)
-  
+
   # Returns the modulus of the Chord ids, equal to 2^m where m is the number of id bits.
   defp max_id(), do: 1 <<< id_bits()
   
@@ -316,10 +316,10 @@ defmodule Proj3.ChordNode do
              {:cont, f}
            end end)
   end
-  
+
   # Determines the next finger to check, based on the id of the last finger found.
   defp next_finger?(fid, nid), do: fid-nid+max_id()+1 |> rem(max_id()) |> :math.log2() |> Float.ceil() |> trunc() |> rem(id_bits())
-  
+
   # Updates the finger table with a new node.
   # Replaces each entry of the table where n is a closer successor than the existing finger.
   defp add_finger(fingers, n, nid) do
@@ -331,7 +331,7 @@ defmodule Proj3.ChordNode do
       end
     end)
   end
-  
+
   # Removes a node from the finger table, replacing all occurrences with its next known successor.
   defp remove_finger(fingers, n, nid) do
     fingers

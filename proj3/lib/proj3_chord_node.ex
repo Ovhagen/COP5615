@@ -17,7 +17,7 @@ defmodule Proj3.ChordNode do
 
   @doc """
   Join n to an existing Chord c.
-  
+
   The sequence of events is as follows:
     1. Find the successor of c.
     2. Place the successor in the first entry of c's finger table.
@@ -33,7 +33,7 @@ defmodule Proj3.ChordNode do
   Tell n that p might be its predecessor.
   """
   def notify(n, p), do: GenServer.cast(n, {:notify, p})
-  
+
   def fix_fingers(n), do: send(n, :fix_fingers)
 
   def check_predecessor()
@@ -71,12 +71,12 @@ defmodule Proj3.ChordNode do
         nid: id,
         predecessor: nil,
         fingers: List.duplicate(%{pid: pid, id: id}, id_bits()),
-        next_finger = 0,
+        next_finger: 0,
         data: %{}
       }
     }
   end
-  
+
   def handle_call({:join, c}, _from, %{nid: nid} = state) do
     case find_successor(c, nid) do
       {:ok, s, _} ->
@@ -98,7 +98,7 @@ defmodule Proj3.ChordNode do
   The 2-arity version is used for calls coming directly from the client, and responds directly if the successor is found immediately.
   The 4-arity version is used for forwarded calls along the Chord, so that the node which eventually resolves the call can respond to the original client.
   This structure allows the call to proceed without blocking every node along the path, and ensures that timeouts due to failed nodes are caught correctly.
-  
+
   Since both versions may need to forward a request, that code is moved into a :continue handler.
   """
 
@@ -111,7 +111,7 @@ defmodule Proj3.ChordNode do
       {:noreply, state, {:continue, {:successor, from, id, 0}}}
     end
   end
-  
+
   def handle_cast({:successor, client, id, count, t}, _from, %{nid: nid, fingers: fingers} = state) do
     Process.cancel_timer(t)
     if between?(id, nid, get_in(hd(fingers), :id)) do
@@ -123,20 +123,20 @@ defmodule Proj3.ChordNode do
       {:reply, :ok, state, {:continue, {:successor, client, id, count}}}
     end
   end
-  
-  def handle_cast({:predecessor, from}, %{predecessor: p} = state) do
+
+  def handle_cast({:predecessor, from, t}, %{predecessor: p} = state) do
     Process.cancel_timer(t)
     GenServer.cast(from, {:stabilize, p})
     {:noreply, state}
   end
-  
+
   def handle_cast({:stabilize, p}, %{nid: nid, fingers: fingers} = state) do
     Process.send_after(self(), :stabilize, Application.get_env(:proj3, :st_delay))
     fingers = add_finger(fingers, p, nid)
     GenServer.cast(get_in(hd(fingers), :pid), {:notify, %{pid: self(), id: nid}})
     {:noreply, Map.put(state, :fingers, fingers)}
   end
-  
+
   def handle_cast({:notify, p}, %{nid: nid, predecessor: q, data: data} = state) do
     if q and between?(p, q, nid-1) do
       {
@@ -148,7 +148,7 @@ defmodule Proj3.ChordNode do
       {:noreply, state}
     end
   end
-  
+
   @doc """
   Handles replies from the fix_fingers Task.
   """
@@ -166,7 +166,7 @@ defmodule Proj3.ChordNode do
            end)
     }
   end
-  
+
   def handle_info(msg, state), do: {:noreply, state, {:continue, msg}}
 
   @doc """
@@ -187,7 +187,7 @@ defmodule Proj3.ChordNode do
       {:noreply, state}
     end
   end
-  
+
   @doc """
   Handles stabilize requests.
   """
@@ -196,7 +196,7 @@ defmodule Proj3.ChordNode do
     GenServer.cast(get_in(s, :pid), {:predecessor, self(), t})
     {:noreply, state}
   end
-  
+
   @doc """
   Handles fix_fingers requests.
   This procedure requires a call to find_successor, so to avoid blocking the node it is called asynchronously through a Task.
@@ -208,11 +208,11 @@ defmodule Proj3.ChordNode do
     end)
     {:noreply, state}
   end
-  
+
   def handle_continue(:check_predecessor) do
-    
+
   end
-  
+
   def handle_continue(:migrate, %{nid: nid, predecessor: p, data: data} = state) do
     keys = data
       |> Map.keys()
@@ -227,28 +227,28 @@ defmodule Proj3.ChordNode do
       {:noreply, state}
     end
   end
-  
+
   def handle_continue({:timeout, n, request}, %{nid: nid} = state) do
     {
       :noreply,
-      state,
+      state
         |> Map.update!(:fingers, &remove_finger(&1, n, nid))
-        |> Map.update!(:predecessor, &(if n == &1, do: nil, else: &1 end)),
+        |> Map.update!(:predecessor, &(if n == &1, do: nil, else: &1)),
       {:continue, request}
     }
   end
-  
+
   ## Private implementation functions
-  
+
   # Retreives the value of the :id_bits configuration parameter.
   defp id_bits(), do: Application.get_env(:proj3, :id_bits)
-  
+
   # Retreives the value of the :timeout configuration parameter.
   defp timeout(), do: Application.get_env(:proj3, :timeout)
-  
+
   # Returns the modulus of the Chord ids, equal to 2^m where m is the number of id bits.
   defp max_id(), do: :math.pow(2, id_bits())
-  
+
   # Returns true if id is in the interval (n, s]. Otherwise returns false.
   # For convenience, you can pass a pid or a map containing an :id key for any of the parameters.
   defp between?(id, n, s) when is_pid(id), do: between?(get_id(id), n, s)
@@ -280,10 +280,10 @@ defmodule Proj3.ChordNode do
              {:cont, f}
            end end)
   end
-  
+
   # Determines the next finger to check, based on the id of the last finger found.
   defp next_finger?(fid, nid), do: fid-nid+max_id()+1 |> rem(max_id()) |> :math.log2() |> Float.ceil() |> trunc() |> rem(id_bits())
-  
+
   # Updates the finger table with a new node.
   # Replaces each entry of the table where n is a closer successor than the existing finger.
   defp add_finger(fingers, n, nid) do
@@ -295,7 +295,7 @@ defmodule Proj3.ChordNode do
       end
     end)
   end
-  
+
   # Removes a node from the finger table, replacing all occurrences with its next known successor.
   defp remove_finger(fingers, n, nid) do
     fingers

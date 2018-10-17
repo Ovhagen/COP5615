@@ -2,4 +2,4 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
-config :proj3, id_bits: 20
+config :proj3, id_bits: 8

@@ -23,20 +23,17 @@ defmodule Proj3.ChordNode do
     stabilize(n)
     fix_fingers(n)
     check_predecessor(n)
+    :ok
   end
 
   @doc """
   Join n to an existing Chord c.
-
-  The sequence of events is as follows:
-    1. Find the successor of c.
-    2. Place the successor in the first entry of c's finger table.
-    3. Run stabilize on c, which should result in notifying c's successor.
-    4. c's successor receives the notification and responds by attempting to migrate keys.
-    5. Run fix_fingers on c.
   """
   def join(n, c) when n != c, do: GenServer.call(n, {:join, c})
 
+  @doc """
+  Tell n to run the stabilize procedure, after a delay.
+  """
   def stabilize(n), do: Process.send_after(n, :stabilize, delay(:st))
 
   @doc """
@@ -44,15 +41,23 @@ defmodule Proj3.ChordNode do
   """
   def notify(n, p), do: GenServer.cast(n, {:notify, p})
 
+  @doc """
+  Tell n to run the fix_fingers procedure, after a delay.
+  """
   def fix_fingers(n), do: Process.send_after(n, :fix_fingers, delay(:ff))
 
+  @doc """
+  Tell n to run the check_predecessor procedure, after a delay.
+  """
   def check_predecessor(n), do: Process.send_after(n, :check_predecessor, delay(:cp))
+  
+  def cycle(n), do: GenServer.call(n, :cycle)
 
   @doc """
   Asks node n to find the successor of id.
   If successful returns a tuple with :ok, the pid of the successor, and the number of calls needed to complete the request.
   """
-  def find_successor(n, id) do
+  def find_successor(n, id) when is_integer(id) do
     if get_id(n) == id do
       {:ok, {n, id}, 0}
     else
@@ -63,6 +68,10 @@ defmodule Proj3.ChordNode do
       end
     end
   end
+  def find_successor(n, id), do: find_successor(n, get_id(id))
+  
+  # Generates a unique, random id by SHA hashing the input string and truncating to the configured bit length
+  def get_id(n), do: :crypto.hash(:sha, inspect(n)) |> Base.encode16() |> Integer.parse(16) |> elem(0) |> rem(max_id())
 
   ## Server Callbacks
 
@@ -122,12 +131,17 @@ defmodule Proj3.ChordNode do
   def handle_call({:successor, id}, from, %{nid: nid, fingers: fingers} = state) do
     if between?(id, nid, hd(fingers)) do
       # Reply with successor
-      IO.puts "#{inspect(self())}: Successor of #{id} is #{inspect(hd(fingers))}"
+      # IO.puts "#{inspect(self())}: Successor of #{id} is #{inspect(hd(fingers))}"
       {:reply, {:ok, hd(fingers), 0}, state}
     else
       # Forward request along the chord
       {:noreply, state, {:continue, {:successor, from, id, 0}}}
     end
+  end
+  
+  def handle_call(:cycle, from, %{nid: nid, fingers: [s | _]} = state) do
+    GenServer.cast(s[:pid], {:cycle, from, [{self(), nid}]})
+    {:noreply, state}
   end
   
   @doc """
@@ -139,7 +153,7 @@ defmodule Proj3.ChordNode do
     Process.cancel_timer(t)
     if between?(id, nid, hd(fingers)) do
       # Reply to original client with successor
-      IO.puts "#{inspect(self())}: Successor of #{id} is #{inspect(hd(fingers))}"
+      # IO.puts "#{inspect(self())}: Successor of #{id} is #{inspect(hd(fingers))}"
       GenServer.reply(client, {:ok, hd(fingers), count})
       {:noreply, state}
     else
@@ -169,17 +183,19 @@ defmodule Proj3.ChordNode do
     {:noreply, Map.put(state, :fingers, fingers)}
   end
   
-  def handle_cast({:notify, p}, %{nid: nid, predecessor: q} = state) do
-    if !q || between?(p, q, nid-1) do
-      {
-        :noreply,
-        Map.put(state, :predecessor, p)
-          |> Map.update!(:fingers, &add_finger(&1, p, nid)),
-        {:continue, :migrate}
-      }
-    else
-      {:noreply, state}
-    end
+  @doc """
+  Handles notifications from possible predecessors.
+  The predecessor is updated if necessary, and the node is also checked against the finger table. This speeds up stabilization in new Chords.
+  Continues to the :migrate procedure, which migrates data to the new predecessor if necessary.
+  """
+  def handle_cast({:notify, p}, %{nid: nid} = state) do
+    {
+      :noreply,
+      state
+        |> Map.update!(:predecessor, &(if !&1 || between?(p, &1, nid-1), do: p, else: &1))
+        |> Map.update!(:fingers, &add_finger(&1, p, nid)),
+      {:continue, :migrate}
+    }
   end
 
   @doc """
@@ -206,6 +222,16 @@ defmodule Proj3.ChordNode do
     {:noreply, state}
   end
   
+  def handle_cast({:cycle, client, chain}, %{nid: nid, fingers: [s | _]} = state) do
+    pair = {self(), nid}
+    if pair in chain do
+      GenServer.reply(client, Enum.reverse([pair] ++ chain))
+    else
+      GenServer.cast(s[:pid], {:cycle, client, [pair] ++ chain})
+    end
+    {:noreply, state}
+  end
+  
   @impl true
   def handle_info(msg, state), do: {:noreply, state, {:continue, msg}}
 
@@ -223,7 +249,7 @@ defmodule Proj3.ChordNode do
       {:noreply, state}
     else
       # Forward the successor request to the best predecessor. Use a cast to avoid blocking, and set a timer for timeout.
-      IO.puts "#{inspect(self())}: Forwarding find_successor request to #{inspect(n[:pid])}"
+      # IO.puts "#{inspect(self())}: Forwarding find_successor request to #{inspect(n[:pid])}"
       t = Process.send_after(self(), {:timeout, n, request}, timeout())
       GenServer.cast(n[:pid], {:successor, client, id, count+1, t})
       {:noreply, state}
@@ -234,7 +260,7 @@ defmodule Proj3.ChordNode do
   Handles stabilize requests.
   """
   def handle_continue(:stabilize, %{fingers: [s | _]} = state) do
-    IO.puts "#{inspect(self())}: Running stabilize, successor is #{inspect(s[:pid])}"
+    # IO.puts "#{inspect(self())}: Running stabilize, successor is #{inspect(s[:pid])}"
     t = Process.send_after(self(), {:timeout, s, :stabilize}, timeout())
     GenServer.cast(s[:pid], {:predecessor, self(), t})
     {:noreply, state}
@@ -291,35 +317,35 @@ defmodule Proj3.ChordNode do
   def handle_continue(_, state), do: {:noreply, state}
   
   ## Private implementation functions
+  
+  # Retrieves environment configuration variables.
+  defp env(v), do: Application.get_env(:proj3, v)
 
   # Retreives the value of the :id_bits configuration parameter.
-  defp id_bits(), do: Application.get_env(:proj3, :id_bits)
+  defp id_bits(), do: env(:id_bits)
 
   # Retreives the value of the :timeout configuration parameter.
-  defp timeout(), do: Application.get_env(:proj3, :timeout)
+  defp timeout(), do: env(:timeout)
   
   # Retreives the value of the various delay configuration parameters.
-  defp delay(d), do: Application.get_env(:proj3, :delay)[d]
+  defp delay(d), do: env(:delay)[d] |> :rand.normal(env(:jitter)) |> trunc()
 
   # Returns the modulus of the Chord ids, equal to 2^m where m is the number of id bits.
   defp max_id(), do: 1 <<< id_bits()
   
   # Returns true if id is in the interval (n, s]. Otherwise returns false.
   # For convenience, you can pass a pid or a map containing an :id key for any of the parameters.
-  def between?(id, n, s) when is_pid(id), do: between?(get_id(id), n, s)
-  def between?(id, n, s) when is_pid(n),  do: between?(id, get_id(n), s)
-  def between?(id, n, s) when is_pid(s),  do: between?(id, n, get_id(s))
-  def between?(id, n, s) when is_map(id), do: between?(id[:id], n, s)
-  def between?(id, n, s) when is_map(n),  do: between?(id, n[:id], s)
-  def between?(id, n, s) when is_map(s),  do: between?(id, n, s[:id])
-  def between?(id, n, s) when n >= s do
+  defp between?(id, n, s) when is_pid(id), do: between?(get_id(id), n, s)
+  defp between?(id, n, s) when is_pid(n),  do: between?(id, get_id(n), s)
+  defp between?(id, n, s) when is_pid(s),  do: between?(id, n, get_id(s))
+  defp between?(id, n, s) when is_map(id), do: between?(id[:id], n, s)
+  defp between?(id, n, s) when is_map(n),  do: between?(id, n[:id], s)
+  defp between?(id, n, s) when is_map(s),  do: between?(id, n, s[:id])
+  defp between?(id, n, s) when n >= s do
     between?(id, n, max_id()-1)
       or between?(id, -1, s)
   end
-  def between?(id, n, s), do: id > n and id <= s
-
-  # Generates a unique, random id by SHA hashing the input string and truncating to the configured bit length
-  defp get_id(n), do: :crypto.hash(:sha, inspect(n)) |> Base.encode16() |> Integer.parse(16) |> elem(0) |> rem(max_id())
+  defp between?(id, n, s), do: id > n and id <= s
 
   # Searches fingers for the furthest node that precedes the id
   defp closest_preceding_node(fingers, id, nid) do

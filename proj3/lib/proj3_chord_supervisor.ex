@@ -59,7 +59,7 @@ defmodule Proj3.ChordSupervisor do
 
   @impl true
   def init(_args) do
-    IO.puts "Init Supervisor"
+    # IO.puts "Init Supervisor"
     DynamicSupervisor.init(
       strategy: :one_for_one
     )

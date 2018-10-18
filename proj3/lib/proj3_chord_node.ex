@@ -18,13 +18,9 @@ defmodule Proj3.ChordNode do
   
   @doc """
   Starts a new Chord ring by kicking off the maintenance processes on a single node.
+  Also can be used to restart a node that is simulating failure.
   """
-  def start(n) do
-    stabilize(n)
-    fix_fingers(n)
-    check_predecessor(n)
-    :ok
-  end
+  def start(n), do: GenServer.call(n, :start)
 
   @doc """
   Join n to an existing Chord c.
@@ -51,6 +47,9 @@ defmodule Proj3.ChordNode do
   """
   def check_predecessor(n), do: Process.send_after(n, :check_predecessor, delay(:cp))
   
+  @doc """
+  FInd the first cycle starting at n. Used for testing network connectivity.
+  """
   def cycle(n), do: GenServer.call(n, :cycle)
 
   @doc """
@@ -70,8 +69,15 @@ defmodule Proj3.ChordNode do
   end
   def find_successor(n, id), do: find_successor(n, get_id(id))
   
-  # Generates a unique, random id by SHA hashing the input string and truncating to the configured bit length
+  @doc """
+  Generates a unique, random id by SHA hashing the input string and truncating to the configured bit length
+  """
   def get_id(n), do: :crypto.hash(:sha, inspect(n)) |> Base.encode16() |> Integer.parse(16) |> elem(0) |> rem(max_id())
+  
+  @doc """
+  Simulate a failure on n.
+  """
+  def failure(n)
 
   ## Server Callbacks
 
@@ -83,20 +89,36 @@ defmodule Proj3.ChordNode do
   def init(_args) do
     pid = self()
     id = get_id(pid)
-    IO.puts "Child_Init: #{inspect(pid)} with id #{id}"
+    # IO.puts "Child_Init: #{inspect(pid)} with id #{id}"
     {
       :ok,
       %{
-        nid: id,
+        nid:         id,
         predecessor: nil,
-        fingers: List.duplicate(%{pid: pid, id: id}, id_bits()),
+        fingers:     List.duplicate(%{pid: pid, id: id}, id_bits()),
         next_finger: 0,
-        data: %{}
+        data:        %{},
+        failure:     :false
       }
     }
   end
-
+  
+  @doc """
+  Used for simulating node failure.
+  A :failure message will cause the node to begin ignoring all messages except :start.
+  """
   @impl true
+  def handle_call(:failure, _from, state), do: {:reply, :ok, Map.put(state, :failure, :true)}
+  def handle_call(_msg, _from, %{failure: :true} = state), do: {:noreply, state}
+  
+  @doc """
+  Used for starting a new single-node Chord, or restarting a node that is simulating failure.
+  """
+  def handle_call(:start, _from, state), do: {:reply, start(self()), Map.put(state, :failure, :false)}
+
+  @doc """
+  Used for joining an existing Chord ring.
+  """
   def handle_call({:join, c}, _from, %{nid: nid} = state) do
     case find_successor(c, nid) do
       {:ok, s, _} ->
@@ -145,10 +167,15 @@ defmodule Proj3.ChordNode do
   end
   
   @doc """
+  Ignores all casts when simulating node failure.
+  """
+  @impl true
+  def handle_cast(_, %{failure: :true} = state), do: {:noreply, state}
+  
+  @doc """
   Handles forwarded find_successor requests.
   The forwarding node detects failures through a timer, so the timer is cancelled as soon as the cast is received.
   """
-  @impl true
   def handle_cast({:successor, client, id, count, t}, %{nid: nid, fingers: fingers} = state) do
     Process.cancel_timer(t)
     if between?(id, nid, hd(fingers)) do
@@ -232,7 +259,12 @@ defmodule Proj3.ChordNode do
     {:noreply, state}
   end
   
+  @doc """
+  Ignores all messages when simulating node failure.
+  """
   @impl true
+  def handle_info(_, %{failure: :true} = state), do: {:noreply, state}
+
   def handle_info(msg, state), do: {:noreply, state, {:continue, msg}}
 
   @doc """
@@ -346,6 +378,14 @@ defmodule Proj3.ChordNode do
       or between?(id, -1, s)
   end
   defp between?(id, n, s), do: id > n and id <= s
+  
+  # Kicks off the node maintenance processes.
+  defp start(n) do
+    stabilize(n)
+    fix_fingers(n)
+    check_predecessor(n)
+    :ok
+  end
 
   # Searches fingers for the furthest node that precedes the id
   defp closest_preceding_node(fingers, id, nid) do

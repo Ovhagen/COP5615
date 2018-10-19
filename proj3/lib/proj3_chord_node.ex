@@ -70,6 +70,12 @@ defmodule Proj3.ChordNode do
   def find_successor(n, id), do: find_successor(n, get_id(id))
   
   @doc """
+  Adds a key-value pair to the chord. Returns :ok if the pair is successfully added, :exists if the key already exists, and :error if the call fails.
+  """
+  def put(n, key, value) do
+    case find_successor(n, get_id(key))
+  
+  @doc """
   Simulate a failure on n.
   """
   def failure(n), do: GenServer.call(n, :failure)
@@ -392,7 +398,7 @@ defmodule Proj3.ChordNode do
   # Searches fingers for the furthest node that precedes the id
   defp closest_preceding_node(fingers, id, nid) do
     Enum.reverse(fingers)
-      |> Enum.reduce_while(self(), fn n, f ->
+      |> Enum.reduce_while(%{pid: self(), id: nid}, fn n, f ->
            if between?(n, nid, id-1) do
              {:halt, n}
            else

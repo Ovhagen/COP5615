@@ -3,7 +3,7 @@
 use Mix.Config
 
 config :proj3, id_bits: 30,
-               timeout: 1000,
+               timeout: 5000,
                delay:   %{st: 3000,
                           ff: 5000,
                           cp: 7000},

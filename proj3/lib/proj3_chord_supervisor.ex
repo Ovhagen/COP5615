@@ -54,7 +54,8 @@ defmodule Proj3.ChordSupervisor do
   
   defp index_assist(_shuffled, _chord, n) when n == 0, do: :ok
   defp index_assist(shuffled, chord, n) when length(shuffled) < 2, do: index_assist(Enum.shuffle(chord), chord, n)
-    [[a, b], tail] = Enum.split(shuffled, 2)
+  defp index_assist(shuffled, chord, n) do
+    {[a, b], tail} = Enum.split(shuffled, 2)
     Node.notify(a, %{pid: b, id: Node.get_id(b)})
     index_assist(tail, chord, n-1)
   end

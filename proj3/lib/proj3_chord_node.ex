@@ -73,7 +73,11 @@ defmodule Proj3.ChordNode do
   Adds a key-value pair to the chord. Returns :ok if the pair is successfully added, :exists if the key already exists, and :error if the call fails.
   """
   def put(n, key, value) do
-    case find_successor(n, get_id(key))
+    case find_successor(n, get_id(key)) do
+      {:ok, %{pid: pid}, _} -> GenServer.call(pid, {:put, key, value})
+      {:error, _}           -> :error
+    end
+  end
   
   @doc """
   Simulate a failure on n.

@@ -10,8 +10,8 @@
   |> Process.sleep()
 
 # Send one request per second to every node each second until all requests are sent.
-(for _n <- 1..numRequests, do: :rand.uniform(Proj3.ChordNode.max_id()) - 1)
-  |> Enum.chunk_every(div(numRequests, numNodes))
+(for _n <- 1..numRequests*numNodes, do: :rand.uniform(Proj3.ChordNode.max_id()) - 1)
+  |> Enum.chunk_every(numRequests)
   |> Enum.zip(chord)
   |> Task.async_stream(fn {ids, n} ->
          Enum.reduce(ids, 0, fn id, sum ->

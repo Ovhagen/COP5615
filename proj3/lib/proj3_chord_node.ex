@@ -14,7 +14,7 @@ defmodule Proj3.ChordNode do
   predecessor: Reference to the previous node in the chord ring. (just the hash?)
   data: A hash table with data stored at the node.
   """
-  def start_link([]), do: GenServer.start_link(__MODULE__, [])
+  def start_link(args \\ %{}), do: GenServer.start_link(__MODULE__, args)
   
   @doc """
   Starts a new Chord ring by kicking off the maintenance processes on a single node.
@@ -80,6 +80,16 @@ defmodule Proj3.ChordNode do
   end
   
   @doc """
+  Retrieves the value associated with a key stored in the chord. Returns nil if the key doesn't exist, or :error if the call fails.
+  """
+  def get(n, key) do
+    case find_successor(n, get_id(key)) do
+      {:ok, %{pid: pid}, _} -> GenServer.call(pid, {:get, key})
+      {:error, _}           -> :error
+    end
+  end
+  
+  @doc """
   Simulate a failure on n.
   """
   def failure(n), do: GenServer.call(n, :failure)
@@ -113,10 +123,9 @@ defmodule Proj3.ChordNode do
   Sets the id to the SHA-1 hash of the node's PID.
   """
   @impl true
-  def init(_args) do
+  def init(args) do
     pid = self()
     id = get_id(pid)
-    # IO.puts "Child_Init: #{inspect(pid)} with id #{id}"
     {
       :ok,
       %{
@@ -124,7 +133,7 @@ defmodule Proj3.ChordNode do
         predecessor: nil,
         fingers:     List.duplicate(%{pid: pid, id: id}, id_bits()),
         next_finger: 0,
-        data:        %{},
+        data:        args,
         failure:     :false
       }
     }
@@ -142,6 +151,22 @@ defmodule Proj3.ChordNode do
   """
   def handle_call(:failure, _from, state), do: {:reply, :ok, Map.put(state, :failure, :true)}
   def handle_call(_msg, _from, %{failure: :true} = state), do: {:noreply, state}
+  
+  @doc """
+  Insert a key in the specified node.
+  """
+  def handle_call({:put, key, value}, _from, %{data: data} = state) do
+    if Map.has_key?(data, key) do
+      {:reply, :exists, state}
+    else
+      {:reply, :ok, Map.update!(state, :data, &Map.put(&1, key, value))}
+    end
+  end
+  
+  @doc """
+  Retrieve a key from the specified node.
+  """
+  def handle_call({:get, key}, _from, %{data: data} = state), do: {:reply, Map.get(data, key), state}
 
   @doc """
   Used for joining an existing Chord ring.
@@ -180,7 +205,6 @@ defmodule Proj3.ChordNode do
   def handle_call({:successor, id}, from, %{nid: nid, fingers: fingers} = state) do
     if between?(id, nid, hd(fingers)) do
       # Reply with successor
-      # IO.puts "#{inspect(self())}: Successor of #{id} is #{inspect(hd(fingers))}"
       {:reply, {:ok, hd(fingers), 0}, state}
     else
       # Forward request along the chord
@@ -207,7 +231,6 @@ defmodule Proj3.ChordNode do
     Process.cancel_timer(t)
     if between?(id, nid, hd(fingers)) do
       # Reply to original client with successor
-      # IO.puts "#{inspect(self())}: Successor of #{id} is #{inspect(hd(fingers))}"
       GenServer.reply(client, {:ok, hd(fingers), count})
       {:noreply, state}
     else
@@ -308,7 +331,6 @@ defmodule Proj3.ChordNode do
       {:noreply, state}
     else
       # Forward the successor request to the best predecessor. Use a cast to avoid blocking, and set a timer for timeout.
-      # IO.puts "#{inspect(self())}: Forwarding find_successor request to #{inspect(n[:pid])}"
       t = Process.send_after(self(), {:timeout, n, request}, timeout())
       GenServer.cast(n[:pid], {:successor, client, id, count+1, t})
       {:noreply, state}
@@ -319,7 +341,6 @@ defmodule Proj3.ChordNode do
   Handles stabilize requests.
   """
   def handle_continue(:stabilize, %{fingers: [s | _]} = state) do
-    # IO.puts "#{inspect(self())}: Running stabilize, successor is #{inspect(s[:pid])}"
     t = Process.send_after(self(), {:timeout, s, :stabilize}, timeout())
     GenServer.cast(s[:pid], {:predecessor, self(), t})
     {:noreply, state}
@@ -354,7 +375,7 @@ defmodule Proj3.ChordNode do
       |> Map.keys()
       |> Enum.filter(&between?(p, get_id(&1), nid))
     if length(keys) > 0 do
-      {:ok, keys} = GenServer.call(p[:pid], {:migrate, Map.take(data, keys)})
+      keys = GenServer.call(p[:pid], {:migrate, Map.take(data, keys)})
       {:noreply, Map.put(state, :data, Map.take(data, Map.keys(data) -- keys))}
     else
       {:noreply, state}
@@ -362,7 +383,6 @@ defmodule Proj3.ChordNode do
   end
 
   def handle_continue({:timeout, n, request}, %{nid: nid} = state) do
-    IO.puts "#{inspect(self())}: Timed out on request #{inspect(request)} to #{inspect(n[:pid])}"
     {
       :noreply,
       state

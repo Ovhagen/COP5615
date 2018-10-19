@@ -19,8 +19,8 @@ defmodule Proj3.ChordSupervisor do
   Starts a new Chord node.
   Returns {:ok, pid}.
   """
-  def start_child() do
-    DynamicSupervisor.start_child(__MODULE__, Node)
+  def start_child(args \\ %{}) do
+    DynamicSupervisor.start_child(__MODULE__, {Node, args})
   end
   
   @doc """
@@ -35,8 +35,8 @@ defmodule Proj3.ChordSupervisor do
   Starts a Chord network with n nodes.
   The nodes are joined in sorted order, so the network starts with a fully connected cycle.
   """
-  def initialize_chord(n) do
-    nodes = start_children(n)
+  def initialize_chord(n, data \\ %{}) when n > 0 do
+    nodes = [elem(start_child(data), 1)] ++ start_children(n-1)
       |> Enum.sort_by(&Node.get_id(&1))
     Node.start(List.last(nodes))
     Enum.chunk_every(nodes, 2, 1, :discard)
@@ -73,7 +73,6 @@ defmodule Proj3.ChordSupervisor do
 
   @impl true
   def init(_args) do
-    # IO.puts "Init Supervisor"
     DynamicSupervisor.init(
       strategy: :one_for_one
     )

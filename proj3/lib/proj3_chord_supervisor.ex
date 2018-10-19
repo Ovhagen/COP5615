@@ -45,6 +45,19 @@ defmodule Proj3.ChordSupervisor do
     Node.notify(List.last(nodes), %{pid: hd(nodes), id: Node.get_id(hd(nodes))})
     {:ok, nodes}
   end
+  
+  @doc """
+  Accelerate the finger indexing process by performing n random notifications across the Chord.
+  """
+  def index_assist(chord, n) when length(chord) > 1 and n > 0, do: index_assist(Enum.shuffle(chord), chord, n)
+  def index_assist(_chord, _n), do: :ok
+  
+  defp index_assist(_shuffled, _chord, n) when n == 0, do: :ok
+  defp index_assist(shuffled, chord, n) when length(shuffled) < 2, do: index_assist(Enum.shuffle(chord), chord, n)
+    [[a, b], tail] = Enum.split(shuffled, 2)
+    Node.notify(a, %{pid: b, id: Node.get_id(b)})
+    index_assist(tail, chord, n-1)
+  end
 
   @doc """
   """

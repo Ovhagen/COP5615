@@ -5,12 +5,6 @@ defmodule Proj3 do
 
   @doc """
   Hello world.
-
-  ## Examples
-
-      iex> Proj3.hello()
-      :world
-
   """
   def hello do
     :world

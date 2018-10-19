@@ -70,14 +70,31 @@ defmodule Proj3.ChordNode do
   def find_successor(n, id), do: find_successor(n, get_id(id))
   
   @doc """
+  Simulate a failure on n.
+  """
+  def failure(n), do: GenServer.call(n, :failure)
+  
+  ## Public utility functions
+  
+  # Retrieves environment configuration variables.
+  def env(v), do: Application.get_env(:proj3, v)
+
+  # Retreives the value of the :id_bits configuration parameter.
+  def id_bits(), do: env(:id_bits)
+
+  # Retreives the value of the :timeout configuration parameter.
+  def timeout(), do: env(:timeout)
+  
+  # Retreives the value of the various delay configuration parameters.
+  def delay(d), do: env(:delay)[d] |> :rand.normal(env(:jitter)) |> trunc()
+
+  # Returns the modulus of the Chord ids, equal to 2^m where m is the number of id bits.
+  def max_id(), do: 1 <<< id_bits()
+  
+  @doc """
   Generates a unique, random id by SHA hashing the input string and truncating to the configured bit length
   """
   def get_id(n), do: :crypto.hash(:sha, inspect(n)) |> Base.encode16() |> Integer.parse(16) |> elem(0) |> rem(max_id())
-  
-  @doc """
-  Simulate a failure on n.
-  """
-  def failure(n)
 
   ## Server Callbacks
 
@@ -104,17 +121,17 @@ defmodule Proj3.ChordNode do
   end
   
   @doc """
+  Used for starting a new single-node Chord, or restarting a node that is simulating failure.
+  """
+  @impl true
+  def handle_call(:start, _from, state), do: {:reply, start(), Map.put(state, :failure, :false)}
+  
+  @doc """
   Used for simulating node failure.
   A :failure message will cause the node to begin ignoring all messages except :start.
   """
-  @impl true
   def handle_call(:failure, _from, state), do: {:reply, :ok, Map.put(state, :failure, :true)}
   def handle_call(_msg, _from, %{failure: :true} = state), do: {:noreply, state}
-  
-  @doc """
-  Used for starting a new single-node Chord, or restarting a node that is simulating failure.
-  """
-  def handle_call(:start, _from, state), do: {:reply, start(self()), Map.put(state, :failure, :false)}
 
   @doc """
   Used for joining an existing Chord ring.
@@ -350,21 +367,6 @@ defmodule Proj3.ChordNode do
   
   ## Private implementation functions
   
-  # Retrieves environment configuration variables.
-  defp env(v), do: Application.get_env(:proj3, v)
-
-  # Retreives the value of the :id_bits configuration parameter.
-  defp id_bits(), do: env(:id_bits)
-
-  # Retreives the value of the :timeout configuration parameter.
-  defp timeout(), do: env(:timeout)
-  
-  # Retreives the value of the various delay configuration parameters.
-  defp delay(d), do: env(:delay)[d] |> :rand.normal(env(:jitter)) |> trunc()
-
-  # Returns the modulus of the Chord ids, equal to 2^m where m is the number of id bits.
-  defp max_id(), do: 1 <<< id_bits()
-  
   # Returns true if id is in the interval (n, s]. Otherwise returns false.
   # For convenience, you can pass a pid or a map containing an :id key for any of the parameters.
   defp between?(id, n, s) when is_pid(id), do: between?(get_id(id), n, s)
@@ -380,10 +382,10 @@ defmodule Proj3.ChordNode do
   defp between?(id, n, s), do: id > n and id <= s
   
   # Kicks off the node maintenance processes.
-  defp start(n) do
-    stabilize(n)
-    fix_fingers(n)
-    check_predecessor(n)
+  defp start() do
+    stabilize(self())
+    fix_fingers(self())
+    check_predecessor(self())
     :ok
   end
 

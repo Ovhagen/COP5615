@@ -1,8 +1,8 @@
 [numNodes, numRequests] = Enum.map(System.argv, &String.to_integer(&1))
 
 {:ok, _sup} = Proj3.ChordSupervisor.start_link()
-{:ok, chord} = Proj3.ChordSupervisor.initialize_chord(numNodes)
-:ok = Proj3.ChordSupervisor.index_assist(chord, trunc(numNodes * :math.log(numNodes)))
+{:ok, chord} = Proj3.Chord.initialize_chord(numNodes)
+:ok = Proj3.Chord.index_assist(chord, trunc(numNodes * :math.log(numNodes)))
 # Allow time for finger tables to index further
 :math.log10(numNodes)
   |> Kernel.*(Proj3.ChordNode.env(:delay)[:ff])
@@ -25,5 +25,5 @@
   |> Enum.unzip()
   |> elem(1)
   |> Enum.sum()
-  |> Kernel./(numRequests)
+  |> Kernel./(numRequests*numNodes)
   |> IO.inspect

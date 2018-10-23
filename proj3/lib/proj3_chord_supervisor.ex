@@ -32,35 +32,6 @@ defmodule Proj3.ChordSupervisor do
   def start_children(_n, pids), do: pids
 
   @doc """
-  Starts a Chord network with n nodes.
-  The nodes are joined in sorted order, so the network starts with a fully connected cycle.
-  """
-  def initialize_chord(n, data \\ %{}) when n > 0 do
-    nodes = [elem(start_child(data), 1)] ++ start_children(n-1)
-      |> Enum.sort_by(&Node.get_id(&1))
-    Node.start(List.last(nodes))
-    Enum.chunk_every(nodes, 2, 1, :discard)
-      |> Enum.each(fn [a, b] -> Node.join(a, b) end)
-    # Tell the last node about the first node to complete the cycle.
-    Node.notify(List.last(nodes), %{pid: hd(nodes), id: Node.get_id(hd(nodes))})
-    {:ok, nodes}
-  end
-  
-  @doc """
-  Accelerate the finger indexing process by performing n random notifications across the Chord.
-  """
-  def index_assist(chord, n) when length(chord) > 1 and n > 0, do: index_assist(Enum.shuffle(chord), chord, n)
-  def index_assist(_chord, _n), do: :ok
-  
-  defp index_assist(_shuffled, _chord, n) when n == 0, do: :ok
-  defp index_assist(shuffled, chord, n) when length(shuffled) < 2, do: index_assist(Enum.shuffle(chord), chord, n)
-  defp index_assist(shuffled, chord, n) do
-    {[a, b], tail} = Enum.split(shuffled, 2)
-    Node.notify(a, %{pid: b, id: Node.get_id(b)})
-    index_assist(tail, chord, n-1)
-  end
-
-  @doc """
   """
   def kill_children() do
     DynamicSupervisor.which_children(__MODULE__)

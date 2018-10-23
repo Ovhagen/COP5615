@@ -1,6 +1,6 @@
 defmodule Proj3.ChordNode do
   @moduledoc """
-
+  This module implements the ChordNode, which is a node in a decentralized peer-to-peer network.
   """
   use GenServer
   import Bitwise
@@ -8,11 +8,7 @@ defmodule Proj3.ChordNode do
   ## Client API
 
   @doc """
-  Starting and linking the GenServer process.
-  node_hash: The hash of the node.
-  fingers: Local routing table of the node. A finger consists is {hash, pid}.
-  predecessor: Reference to the previous node in the chord ring. (just the hash?)
-  data: A hash table with data stored at the node.
+  Starts a new ChordNode and links it to the current process.
   """
   def start_link(args \\ %{}), do: GenServer.start_link(__MODULE__, args)
   
@@ -26,6 +22,16 @@ defmodule Proj3.ChordNode do
   Join n to an existing Chord c.
   """
   def join(n, c) when n != c, do: GenServer.call(n, {:join, c})
+  
+  @doc """
+  Set n to idle mode. This turns off the network maintenance processes (stabilize, fix_fingers and check_predecessor).
+  """
+  def idle(n), do: GenServer.call(n, :idle)
+  
+  @doc """
+  Simulate a failure on n.
+  """
+  def failure(n), do: GenServer.call(n, :failure)
 
   @doc """
   Tell n to run the stabilize procedure, after a delay.
@@ -48,7 +54,7 @@ defmodule Proj3.ChordNode do
   def check_predecessor(n), do: Process.send_after(n, :check_predecessor, delay(:cp))
   
   @doc """
-  FInd the first cycle starting at n. Used for testing network connectivity.
+  Find the first cycle starting at n. Used for testing network connectivity.
   """
   def cycle(n), do: GenServer.call(n, :cycle)
 
@@ -70,29 +76,41 @@ defmodule Proj3.ChordNode do
   def find_successor(n, id), do: find_successor(n, get_id(id))
   
   @doc """
-  Adds a key-value pair to the chord. Returns :ok if the pair is successfully added, :exists if the key already exists, and :error if the call fails.
+  Adds a key-value pair to the chord. Returns :ok if the pair is successfully added, and :error if the call fails.
+  Note that data stored in the chord is immutable; if a key already exists the request will be ignored and value will not be updated.
   """
-  def put(n, key, value) do
-    case find_successor(n, get_id(key)) do
-      {:ok, %{pid: pid}, _} -> GenServer.call(pid, {:put, key, value})
-      {:error, _}           -> :error
+  def put(n, key, value), do: put(n, key, value, replicate_id(get_id(key)))
+  def put(_n, _key, _value, []), do: :ok
+  def put(n, key, value, [id | ids]) do
+    case find_successor(n, id) do
+      {:ok, %{pid: pid}, _} ->
+        GenServer.call(pid, {:put, key, value})
+        put(n, key, value, ids)
+      {:error, _} -> :error
     end
   end
   
   @doc """
   Retrieves the value associated with a key stored in the chord. Returns nil if the key doesn't exist, or :error if the call fails.
   """
-  def get(n, key) do
-    case find_successor(n, get_id(key)) do
-      {:ok, %{pid: pid}, _} -> GenServer.call(pid, {:get, key})
-      {:error, _}           -> :error
+  def get(n, key), do: get(n, key, replicate_id(get_id(key)))
+  def get(_n, _key, []), do: nil
+  def get(n, key, [id | ids]) do
+    case find_successor(n, id) do
+      {:ok, %{pid: pid}, _} ->
+        case GenServer.call(pid, {:get, key}) do
+          nil ->
+            case get(n, key, ids) do
+              nil -> nil
+              val ->
+                put(n, key, val, [id])
+                val
+            end
+          val -> val
+        end
+      {:error, _} -> :error
     end
   end
-  
-  @doc """
-  Simulate a failure on n.
-  """
-  def failure(n), do: GenServer.call(n, :failure)
   
   ## Public utility functions
   
@@ -115,6 +133,14 @@ defmodule Proj3.ChordNode do
   Generates a unique, random id by SHA hashing the input string and truncating to the configured bit length
   """
   def get_id(n), do: :crypto.hash(:sha, inspect(n)) |> Base.encode16() |> Integer.parse(16) |> elem(0) |> rem(max_id())
+  
+  # Generates multiple ids for replicating across the chord.
+  # The number of replicas is determined by the :replication configuration parameter.
+  def replicate_id(id) do
+    r = env(:replication)
+    i = max_id() >>> r
+    for n <- 1..(1 <<< r), do: rem((n - 1) * i + id, max_id())
+  end
 
   ## Server Callbacks
 
@@ -134,7 +160,7 @@ defmodule Proj3.ChordNode do
         fingers:     List.duplicate(%{pid: pid, id: id}, id_bits()),
         next_finger: 0,
         data:        args,
-        failure:     :false
+        mode:        :idle
       }
     }
   end
@@ -143,14 +169,19 @@ defmodule Proj3.ChordNode do
   Used for starting a new single-node Chord, or restarting a node that is simulating failure.
   """
   @impl true
-  def handle_call(:start, _from, state), do: {:reply, start(), Map.put(state, :failure, :false)}
+  def handle_call(:start, _from, state), do: {:reply, start(), Map.put(state, :mode, :active)}
+  
+  @doc """
+  Used for setting a node to idle mode. Can also be used to restart a failed node without restarting the maintenance processes.
+  """
+  def handle_call(:idle, _from, state), do: {:reply, :ok, Map.put(state, :mode, :idle)}
   
   @doc """
   Used for simulating node failure.
   A :failure message will cause the node to begin ignoring all messages except :start.
   """
-  def handle_call(:failure, _from, state), do: {:reply, :ok, Map.put(state, :failure, :true)}
-  def handle_call(_msg, _from, %{failure: :true} = state), do: {:noreply, state}
+  def handle_call(:failure, _from, state), do: {:reply, :ok, Map.put(state, :mode, :failure)}
+  def handle_call(_msg, _from, %{mode: :failure} = state), do: {:noreply, state}
   
   @doc """
   Insert a key in the specified node.
@@ -179,7 +210,8 @@ defmodule Proj3.ChordNode do
         {
           :reply,
           :ok,
-          Map.update!(state, :fingers, &add_finger(&1, s, nid)),
+          Map.update!(state, :fingers, &add_finger(&1, s, nid))
+            |> Map.put(:mode, :active),
           {:continue, :stabilize}
         }
       {:error, _} ->
@@ -188,10 +220,10 @@ defmodule Proj3.ChordNode do
     end
   end
   
-  def handle_call({:migrate, new_data}, _from, state) do
+  def handle_call({:migrate, new_data}, _from, %{data: data} = state) do
     {
       :reply,
-      Map.keys(new_data),
+      Map.keys(new_data) -- Map.keys(data),
       Map.update!(state, :data, &Map.merge(&1, new_data))
     }
   end
@@ -208,7 +240,7 @@ defmodule Proj3.ChordNode do
       {:reply, {:ok, hd(fingers), 0}, state}
     else
       # Forward request along the chord
-      {:noreply, state, {:continue, {:successor, from, id, 0}}}
+      {:noreply, state, {:continue, {:successor, from, id, 1}}}
     end
   end
   
@@ -221,7 +253,7 @@ defmodule Proj3.ChordNode do
   Ignores all casts when simulating node failure.
   """
   @impl true
-  def handle_cast(_, %{failure: :true} = state), do: {:noreply, state}
+  def handle_cast(_, %{mode: :failure} = state), do: {:noreply, state}
   
   @doc """
   Handles forwarded find_successor requests.
@@ -235,7 +267,7 @@ defmodule Proj3.ChordNode do
       {:noreply, state}
     else
       # Forward request along the chord
-      {:noreply, state, {:continue, {:successor, client, id, count}}}
+      {:noreply, state, {:continue, {:successor, client, id, count+1}}}
     end
   end
   
@@ -278,7 +310,7 @@ defmodule Proj3.ChordNode do
   @doc """
   Handles replies from the fix_fingers Task.
   """
-  def handle_cast({:fix_fingers, {:ok, f, _}}, %{nid: nid, next_finger: next} = state) do
+  def handle_cast({:fix_fingers, f}, %{nid: nid, next_finger: next} = state) do
     fix_fingers(self())
     {
       :noreply,
@@ -310,11 +342,13 @@ defmodule Proj3.ChordNode do
   end
   
   @doc """
-  Ignores all messages when simulating node failure.
+  Regular messages are used for the node maintenance processes as well as timeouts, which are normally sent directly to the continue handler.
+  During idle operation maintenance process messages are ignored, but timeouts are still handled.
+  During failure operation all messages are ignored.
   """
   @impl true
-  def handle_info(_, %{failure: :true} = state), do: {:noreply, state}
-
+  def handle_info(_, %{mode: :failure} = state), do: {:noreply, state}
+  def handle_info(msg, %{mode: :idle} = state) when is_atom(msg), do: {:noreply, state}
   def handle_info(msg, state), do: {:noreply, state, {:continue, msg}}
 
   @doc """
@@ -332,7 +366,7 @@ defmodule Proj3.ChordNode do
     else
       # Forward the successor request to the best predecessor. Use a cast to avoid blocking, and set a timer for timeout.
       t = Process.send_after(self(), {:timeout, n, request}, timeout())
-      GenServer.cast(n[:pid], {:successor, client, id, count+1, t})
+      GenServer.cast(n[:pid], {:successor, client, id, count, t})
       {:noreply, state}
     end
   end
@@ -354,12 +388,17 @@ defmodule Proj3.ChordNode do
   def handle_continue(:fix_fingers, %{nid: nid, next_finger: next} = state) do
     pid = self()
     Task.start(fn ->
-      s = find_successor(pid, nid + (1 <<< next) |> rem(max_id()))
-      GenServer.cast(pid, {:fix_fingers, s})
+      case find_successor(pid, nid + (1 <<< next) |> rem(max_id())) do
+        {:ok, s, _} -> GenServer.cast(pid, {:fix_fingers, s})
+        {:error, _} -> fix_fingers(pid) # Too busy, try again later.
+      end
     end)
     {:noreply, state}
   end
   
+  @doc """
+  Handles check_predecessor requests.
+  """
   def handle_continue(:check_predecessor, %{predecessor: p} = state) do
     if p do
       t = Process.send_after(self(), {:timeout, p, :check_predecessor}, timeout())
@@ -369,14 +408,17 @@ defmodule Proj3.ChordNode do
     end
     {:noreply, state}
   end
-
+  
+  @doc """
+  Handles data migration when a new predecessor is discovered.
+  """
   def handle_continue(:migrate, %{nid: nid, predecessor: p, data: data} = state) do
-    keys = data
-      |> Map.keys()
-      |> Enum.filter(&between?(p, get_id(&1), nid))
+    keys =
+      Enum.zip(replicate_id(nid), replicate_id(p[:id]))
+      |> Enum.reduce(Map.keys(data), fn {ni, pi}, k -> Enum.reject(k, &between?(get_id(&1), pi, ni)) end)
     if length(keys) > 0 do
       keys = GenServer.call(p[:pid], {:migrate, Map.take(data, keys)})
-      {:noreply, Map.put(state, :data, Map.take(data, Map.keys(data) -- keys))}
+      {:noreply, Map.update!(state, :data, &Map.take(&1, Map.keys(data) -- keys))}
     else
       {:noreply, state}
     end
@@ -435,7 +477,7 @@ defmodule Proj3.ChordNode do
 
   # Updates the finger table with a new node.
   # Replaces each entry of the table where n is a closer successor than the existing finger.
-  def add_finger(fingers, n, nid) do
+  defp add_finger(fingers, n, nid) do
     Enum.map_reduce(fingers, 1, fn f, acc ->
       if between?(n, rem(nid+acc, max_id()), f) do
         {n, acc*2}
@@ -447,11 +489,12 @@ defmodule Proj3.ChordNode do
   end
 
   # Removes a node from the finger table, replacing all occurrences with its next known successor.
-  def remove_finger(fingers, n, nid) do
+  defp remove_finger(fingers, n, nid) do
     fingers
       |> Enum.reverse()
       |> Enum.map_reduce(%{pid: self(), id: nid}, &(if &1 == n, do: {&2, &2}, else: {&1, &1}))
       |> elem(0)
       |> Enum.reverse()
   end
+  
 end

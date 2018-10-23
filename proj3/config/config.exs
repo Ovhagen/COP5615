@@ -8,4 +8,4 @@ config :proj3, id_bits:     30,
                               ff: 4000,
                               cp: 6000},
                jitter:      100,
-               replication: 3
+               replication: 0

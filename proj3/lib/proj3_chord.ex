@@ -39,7 +39,7 @@ defmodule Proj3.Chord do
     Enum.chunk_every(1..length(c)*k, k)
       |> Enum.shuffle()
       |> Enum.zip(c)
-      |> Task.async_stream(fn {keys, n} -> Enum.each(keys, &(Proj3.ChordNode.put(n, &1, &1))) end)
+      |> Task.async_stream(fn {keys, n} -> Enum.each(keys, &(Proj3.ChordNode.put(n, &1, &1))) end, timeout: :infinity)
       |> Enum.reduce(:ok, fn {:ok, :ok}, :ok -> :ok end)
     Map.new(1..length(c)*k, &({&1, &1}))
   end

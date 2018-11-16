@@ -25,13 +25,21 @@ defmodule MerkleTree do
     :crypto.hash(:sha256, data) |> Base.encode16(case: :lower)
   end
 
-
+  @doc """
+  Helper function which checks if input data is a power of two.
+  """
   @spec is_correct_power([String.t, ...]) :: Boolean.t
   defp is_correct_power(data) do
     len = length(data)
     :math.ceil(:math.log2(len)) == :math.floor(:math.log2(len))
   end
 
+  @doc """
+  This function handles the main operations for generating a merkle tree.
+  Key activities are: Check and throw errors if necessary, create the first
+  leaf nodes for each transaction, call generate_tree() to recursively build
+  the tree, and finally set the root node to be returned.
+  """
   @spec makeMerkle([String.t, ...]) :: MerkleTree.Node.t
   def makeMerkle(transactions) do
     if (transactions == []), do: raise FunctionClauseError
@@ -49,9 +57,11 @@ defmodule MerkleTree do
 
   @doc """
   Recursively build the tree until only root node is left.
-  Builds the tree on a level by level basis.
+  Builds the tree on a level by level basis; creates parent nodes
+  by concatenating hashes and re-hash them, then passing them further
+  up the tree to repeat the same process.
   """
-  @spec makeMerkle([MerkleTree.Node.t, ...]) :: MerkleTree.Node.t
+  @spec generate_tree([MerkleTree.Node.t, ...], Integer.t) :: MerkleTree.Node.t
   defp generate_tree([root], _), do: root
   defp generate_tree(nodes, height) do
     parent_nodes = nodes

@@ -15,11 +15,11 @@ defmodule Proj4.MerkleTreeTest do
   end
 
   test "Power arity failure", %{arity_test: arity_test} do
-    assert_raise(MerkleTree.PowerError, fn _ -> MerkleTree.makeMerkle(arity_test) end)
+    assert_raise(MerkleTree.PowerError, fn () -> MerkleTree.makeMerkle(arity_test) end)
   end
 
   test "No argument failure" do
-    assert_raise(FunctionClauseError, fn _ -> MerkleTree.makeMerkle([]) end)
+    assert_raise(FunctionClauseError, fn () -> MerkleTree.makeMerkle([]) end)
   end
 
 end

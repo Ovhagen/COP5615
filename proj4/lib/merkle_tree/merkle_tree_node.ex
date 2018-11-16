@@ -1,4 +1,7 @@
 defmodule MerkleTree.Node do
+    @moduledoc """
+  This module represents a node in the merkle tree.
+  """
 
   defstruct [:hash_value, :height, :children]
 

@@ -7,6 +7,9 @@ defmodule MerkleTree do
   The root hash of the tree resides on the top-level of the tree. Transactions can be
   validated as a part of the tree through building the merkle path up to the root hash.
 
+  In regards bitcoin, a merkle tree root is stored in the block header. Full nodes
+  keep a copy of the merkle tree and can 
+
   """
 
   defstruct [:root]

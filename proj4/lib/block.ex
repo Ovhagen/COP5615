@@ -11,7 +11,7 @@ defmodule Block do
   @typedoc """
   The total size calculated on the block.
   """
-  @type block_size :: Integer.t
+  @type block_size :: non_neg_integer
   @typedoc """
   An array containing all the transactions included in the block.
   """
@@ -19,7 +19,7 @@ defmodule Block do
   @typedoc """
   A counter for the amount of transactions included in the block.
   """
-  @type tx_counter :: Integer.t
+  @type tx_counter :: non_neg_integer
   @typedoc """
   An list containing all the transactions included in the block.
   """

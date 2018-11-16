@@ -10,7 +10,7 @@ defmodule MerkleTree.Node do
   """
   @type t :: %MerkleTree.Node{
     hash_value: String.t,
-    height: Integer.t,
+    height: non_neg_integer,
     children: %{:left => MerkleTree.Node.t, :right => MerkleTree.Node.t}
   }
 end

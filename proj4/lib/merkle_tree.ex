@@ -14,6 +14,9 @@ defmodule MerkleTree do
 
   defstruct [:root]
 
+  @typedoc """
+  The merkle root node of the merkle tree.
+  """
   @type root :: MerkleTree.Node.t
   @type t :: %MerkleTree{
     root: root
@@ -24,7 +27,7 @@ defmodule MerkleTree do
   Uses SHA256 hash alogrithm.
   """
   @spec hash(String.t) :: String.t
-  defp hash(data) do
+  def hash(data) do
     :crypto.hash(:sha256, data) |> Base.encode16(case: :lower)
   end
 
@@ -76,7 +79,7 @@ defmodule MerkleTree do
       |> Enum.chunk_every(2)
       |> Enum.map(fn [h1, h2] -> hash(h1 <> h2) end)
         %MerkleTree.Node{
-          hash_value: concat_hash,
+          hash_value: List.to_string(concat_hash),
           height: height,
           children: %{:left => Enum.at(node_pair, 0), :right => Enum.at(node_pair, 1)}
         }

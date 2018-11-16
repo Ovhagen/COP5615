@@ -10,8 +10,7 @@ defmodule Proj4.MerkleTreeTest do
 
   test "General use case", %{tx_test1: tx_test1} do
     tree = MerkleTree.makeMerkle(tx_test1)
-    # assert tree.root.hash_value == "bae2b3a1a01b4e555b9566f09e541661239c3199e9f2819af5d8563bce13ddd4"
-    tree |> IO.inspect
+    assert(tree.root.hash_value == "bae2b3a1a01b4e555b9566f09e541661239c3199e9f2819af5d8563bce13ddd4")
   end
 
   test "Power arity failure", %{arity_test: arity_test} do

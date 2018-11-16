@@ -12,7 +12,7 @@ defmodule Block.BlockHeader do
     @typedoc """
     Version number of protocol for block.
     """
-    @type version :: Integer.t
+    @type version :: non_neg_integer
     @typedoc """
     The previous block hash.
     """
@@ -28,11 +28,11 @@ defmodule Block.BlockHeader do
     @typedoc """
     The difficulty target in bits to create the block.
     """
-    @type difficulty :: Integer.t
+    @type difficulty :: non_neg_integer
     @typedoc """
     A 32-bit number showing the hash increments. Starts at 0.
     """
-    @type nonce :: Integer.t
+    @type nonce :: non_neg_integer
     @type t :: %Block.BlockHeader{
         version: version, 
         previous_hash: previous_hash, 

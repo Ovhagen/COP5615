@@ -1,17 +1,3 @@
-defmodule MerkleTree.Node do
-
-  defstruct [:hash_value, :height, :children]
-
-  @typedoc """
-  A custom type that represents a node in the merkle tree.
-  """
-  @type t :: %MerkleTree.Node{
-    hash_value: String.t,
-    height: Integer.t,
-    children: %{:left => MerkleTree.Node.t, :right => MerkleTree.Node.t}
-  }
-end
-
 defmodule MerkleTree do
   @moduledoc """
   This module represents a merkle tree which produces the root hash stored in a
@@ -39,8 +25,18 @@ defmodule MerkleTree do
     :crypto.hash(:sha256, data) |> Base.encode16(case: :lower)
   end
 
+
+  @spec is_correct_power([String.t, ...]) :: Boolean.t
+  defp is_correct_power(data) do
+    len = length(data)
+    :math.ceil(:math.log2(len)) == :math.floor(:math.log2(len))
+  end
+
   @spec makeMerkle([String.t, ...]) :: MerkleTree.Node.t
   def makeMerkle(transactions) do
+    if (transactions == []), do: raise FunctionClauseError
+    unless is_correct_power(transactions), do: raise MerkleTree.PowerError
+
     root = transactions
     |> Enum.map(fn (tx) ->
       %MerkleTree.Node{

@@ -11,21 +11,21 @@ defmodule Proj4.MerkleProofTest do
       index: 0,
       merkle_path: ["7853d08f19cbdec01cb95613771670650b2967aafbc02cf7fdd69047551fa465",
                    "ffe1f2421d57dc07f5f0c13b439ad80cff78a0f5683a5faa9d0fab4d1bc92a2a",
-                   "fc73efaf5dae1dca1c1bdf0c3d2f59dec282a3951f42524fabe1da0e49278518"],
-      root_hash: "bae2b3a1a01b4e555b9566f09e541661239c3199e9f2819af5d8563bce13ddd4"
+                   "fc73efaf5dae1dca1c1bdf0c3d2f59dec282a3951f42524fabe1da0e49278518",
+                   "bae2b3a1a01b4e555b9566f09e541661239c3199e9f2819af5d8563bce13ddd4"]
 	 }
   end
 
-  test "Use case when creating a proof object" %{tx_test: tx_test, target_tx: target_tx, index: index, merkle_path: merkle_path} do
+  test "Use case when creating a proof object", %{tx_test: tx_test, target_tx: target_tx, index: index, merkle_path: merkle_path} do
     tree = MerkleTree.makeMerkle(tx_test) 
     proof = MerkleTree.Proof.generateMerkleProof(tree, MerkleTree.hash(target_tx), index)
     assert(proof.hash_values == merkle_path)
   end
 
-  test "Successfully verifying a transaction" %{tx_test: tx_test, target_tx: target_tx, index: index, merkle_path: merkle_path} do
+  test "Successfully verifying a transaction", %{tx_test: tx_test, target_tx: target_tx, index: index, merkle_path: merkle_path} do
     tree = MerkleTree.makeMerkle(tx_test) 
-    proof = MerkleTree.Proof.generateMerkleProof(tree, MerkleTree.hash(target_tx), index)
-    assert(proof.verify_transaction() == root_hash)
+    proof = MerkleTree.Proof.generateMerkleProof(tree, target_tx, index)
+    assert(MerkleTree.Proof.verify_transaction(proof))
   end
 
 end

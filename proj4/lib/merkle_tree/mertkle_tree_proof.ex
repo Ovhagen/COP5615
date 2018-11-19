@@ -42,7 +42,7 @@ defmodule MerkleTree.Proof do
     @doc """
     This function recursively extracts the nodes on the opposite path to traverse to reach
     the target hash of a transaction. Starting from the root, this function traverses 
-    either the left or right subtree of a node depending on the index of the transaction.
+    either left or right subtree of a node depending on the index of the transaction.
     The function keeps an active list which it appends merkle path hashes to while running.
     """
     @spec traverseMerkleTree(MerkleTree.Node.t, String.t, non_neg_integer, non_neg_integer, non_neg_integer, [String.t, ...]) :: [String.t, ...]

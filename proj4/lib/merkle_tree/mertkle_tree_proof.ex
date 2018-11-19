@@ -19,10 +19,9 @@ defmodule MerkleTree.Proof do
         hash_values: hash_values
     }
 
-    
     @doc """
     Generates the merkle tree path of hashes to verify a given transaction.
-    Takes the merkle tree, the target transaction hash, and the index of the 
+    Takes the merkle tree, the target transaction, and the index of the 
     transaction. The index can be found in the list of transactions in the
     full block, where the target transaction is stored.
 
@@ -30,18 +29,41 @@ defmodule MerkleTree.Proof do
     on the request of a client. The client can further take this proof and verify
     the transaction.
     """
-    @spec generateMerkleProof(MerkleTree.t, String.t, non_neg_integer) :: Merkle.Proof.t
-    # TODO: Implement merkle tree generation. Traverse the tree depending on index.
-    def generateMerkleProof(merkle_tree, target_tx, index) do
-        original_tx = target_tx
-        hash_values = ["7853d08f19cbdec01cb95613771670650b2967aafbc02cf7fdd69047551fa465",
-        "ffe1f2421d57dc07f5f0c13b439ad80cff78a0f5683a5faa9d0fab4d1bc92a2a",
-        "fc73efaf5dae1dca1c1bdf0c3d2f59dec282a3951f42524fabe1da0e49278518",
-        "bae2b3a1a01b4e555b9566f09e541661239c3199e9f2819af5d8563bce13ddd4"]
+    @spec generateMerkleProof(MerkleTree.t, String.t, non_neg_integer, non_neg_integer, non_neg_integer) :: Merkle.Proof.t
+    def generateMerkleProof(merkle_tree, target_tx, height, index, tx_count) do
+        target_hash = MerkleTree.hash(target_tx)
+        hash_values = traverseMerkleTree(merkle_tree.root, target_hash, height, index, tx_count, [])
         %MerkleTree.Proof{
             original_tx: target_tx,
-            hash_values: hash_values
+            hash_values: Enum.concat(hash_values, [merkle_tree.root.hash_value])
         }
+    end
+
+    @doc """
+    This function recursively extracts the nodes on the opposite path to traverse to reach
+    the target hash of a transaction. Starting from the root, this function traverses 
+    either the left or right subtree of a node depending on the index of the transaction.
+    The function keeps an active list which it appends merkle path hashes to while running.
+    """
+    @spec traverseMerkleTree(MerkleTree.Node.t, String.t, non_neg_integer, non_neg_integer, non_neg_integer, [String.t, ...]) :: [String.t, ...]
+    def traverseMerkleTree(merkle_node, target_hash, height, _, _, results) when height == 0, do: Enum.concat([target_hash], results)  #Base case, return the leaf hash
+    def traverseMerkleTree(merkle_node, target_hash, height, index, tx_count, results) when div(tx_count, 2) <= index do  #Do right traversal
+        traverseMerkleTree(
+            merkle_node.children[:right], 
+            target_hash,
+            height-1, 
+            index-div(tx_count, 2), 
+            div(tx_count, 2), 
+            Enum.concat([merkle_node.children[:left].hash_value], results))
+    end
+    def traverseMerkleTree(merkle_node, target_hash, height, index, tx_count, results) when div(tx_count, 2) > index do  #Do left traversal
+        traverseMerkleTree(
+            merkle_node.children[:left], 
+            target_hash,
+            height-1, 
+            index, 
+            div(tx_count, 2), 
+            Enum.concat([merkle_node.children[:right].hash_value], results))
     end
 
     @doc """

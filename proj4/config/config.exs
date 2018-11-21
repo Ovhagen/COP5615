@@ -29,4 +29,5 @@ use Mix.Config
 #
 #     import_config "#{Mix.env()}.exs"
 
-config :proj4, block_difficulty:     30
+config :proj4, block_difficulty:     0,
+               block_version:        1

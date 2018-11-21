@@ -89,8 +89,8 @@ defmodule Block do
   A function which verifies a block. This is done by computing the block hash with
   the nonce and compare with the provided block hash as well as comparing to set difficulty.
   Also, the time of creation can't be earlier than previous block. Additionally, the merkle
-  root is calculated for all the transactions included in the block. This functionality will
-  mainly be used by full nodes in the network or miners.
+  root is calculated for all the transactions included in the block and compared with.
+  This functionality will mainly be used by full nodes in the network, namely miners.
   """
   #TODO Implement verification of a block.
   def verifyBlock() do

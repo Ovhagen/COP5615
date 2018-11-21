@@ -35,6 +35,7 @@ defmodule Block do
   Hash function for creating block hashes from block data.
   Uses SHA256 hash alogrithm.
   """
+  #TODO Implement a way to compute the block hash. Look on bitcoin.org first.
   @spec hash(Block.t) :: String.t
   def hash(data) do
     :crypto.hash(:sha256, data) |> Base.encode16(case: :lower)
@@ -91,6 +92,7 @@ defmodule Block do
   root is calculated for all the transactions included in the block. This functionality will
   mainly be used by full nodes in the network or miners.
   """
+  #TODO Implement verification of a block.
   def verifyBlock() do
 
   end

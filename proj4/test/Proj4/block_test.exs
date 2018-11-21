@@ -27,5 +27,7 @@ defmodule Proj4.BlockTest do
     block = Block.createBlock(tx_test, tree.root.hash_value, prev_hash, nonce)
   end
 
+  #TODO Case when block verification fails and implement exception handling
+
 
 end

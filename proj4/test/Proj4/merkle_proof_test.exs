@@ -30,11 +30,9 @@ defmodule Proj4.MerkleProofTest do
     assert(MerkleTree.Proof.verify_transaction(proof))
   end
 
-  #TODO Should handle exception when trying to generate proof on faulty transaction.
-  # test "Failing to verifying a transaction", %{tx_test: tx_test, target_tx: target_tx, target_idx: target_idx, tx_count: tx_count, merkle_path: merkle_path, target_tx_fail: target_tx_fail} do
-  #   tree = MerkleTree.makeMerkle(tx_test)
-  #   proof = MerkleTree.Proof.generateMerkleProof(tree, target_tx_fail, tree.root.height, target_idx, length(tx_test))
-  #   assert(MerkleTree.Proof.verify_transaction(proof))
-  # end
+  test "Failing to verifying a transaction", %{tx_test: tx_test, target_idx: target_idx, tx_count: tx_count, merkle_path: merkle_path, target_tx_fail: target_tx_fail} do
+    tree = MerkleTree.makeMerkle(tx_test)
+    assert_raise(MerkleTree.ProofError, fn () -> MerkleTree.Proof.generateMerkleProof(tree, target_tx_fail, tree.root.height, target_idx, length(tx_test)) end)
+  end
 
 end

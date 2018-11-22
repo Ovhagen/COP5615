@@ -8,7 +8,7 @@ defmodule MerkleTree do
   validated as a part of the tree through building the merkle path up to the root hash.
 
   In regards bitcoin, a merkle tree root is stored in the block header. Full nodes
-  keep a copy of the merkle tree and can 
+  keep a copy of the merkle tree and can
 
   """
 

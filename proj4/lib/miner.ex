@@ -7,5 +7,6 @@ defmodule Miner do
   #TODO Implement transaction viability by confirming amounts available on wallets
   #TODO Implement further verification.
   #TODO A miner should hold active lists of block (as well as chains?) when it decides where to put its hashing power.
+  #TODO fee priority
 
 end

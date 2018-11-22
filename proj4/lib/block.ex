@@ -21,7 +21,7 @@ defmodule Block do
   """
   @type tx_counter :: non_neg_integer
   @typedoc """
-  An list containing all the transactions included in the block.
+  A list containing all the transactions included in the block.
   """
   @type transactions :: [String.t, ...]
   @type t :: %Block{
@@ -31,14 +31,48 @@ defmodule Block do
       transactions: transactions
   }
 
+  @spec double_hash(String.t) :: String.t
+  def double_hash(data) do
+    thedata = <<Integer.parse(data, 16)|> elem(0)::640>>
+    h1 = :crypto.hash(:sha256, thedata)
+    :crypto.hash(:sha256, h1) |> Base.encode16(case: :lower)
+  end
+
   @doc """
-  Hash function for creating block hashes from block data.
-  Uses SHA256 hash alogrithm.
+  Generates the block hash with the block header. Each parameter is converted
+  to little endian and concatenated to form a large string parameter. This
+  parameter is the hashed twice and converted to little endian.
   """
-  #TODO Implement a way to compute the block hash. Look on bitcoin.org first.
-  @spec hash(Block.t) :: String.t
-  def hash(data) do
-    :crypto.hash(:sha256, data) |> Base.encode16(case: :lower)
+  @spec generate_block_hash(Block.BlockHeader.t) :: String.t
+  def generate_block_hash(header) do
+    data = [
+      header.version,
+      header.previous_hash,
+      header.merkle_root,
+      header.timestamp,
+      header.difficulty,
+      header.nonce]
+    data = data |> Enum.map(fn(x) -> endian_converter(x) end)  |> Enum.reduce(fn(x,acc) -> acc <> x end)
+    double_hash(data) |> endian_converter()
+  end
+
+  @doc """
+  Converts the input of either an integer or a string to a binary representation in little endian.
+  """
+  defp endian_converter(data) do
+    if(is_integer(data)) do
+      <<data::32>>
+      |> :binary.decode_unsigned(:little)
+      |> Integer.to_string(16)
+      |> String.pad_leading(8, "0")
+      |> String.downcase()
+    else
+      <<Integer.parse(data, 16) |> elem(0)::256>>
+      |> :binary.decode_unsigned(:little)
+      |> Integer.to_string(16)
+      |> String.pad_leading(64, "0")
+      |> String.downcase()
+    end
   end
 
   @doc """
@@ -68,7 +102,7 @@ defmodule Block do
   def createBlock(transactions, merkle_root, prev_hash, nonce) do
     block_header = %Block.BlockHeader{
       version: Application.get_env(:proj4, :block_version),
-      previous_hash: prev_hash,
+      previous_hash: List.to_string(prev_hash),
       merkle_root: merkle_root,
       timestamp: :os.system_time(:seconds),
       difficulty: Application.get_env(:proj4, :block_difficulty),
@@ -88,13 +122,26 @@ defmodule Block do
   @doc """
   A function which verifies a block. This is done by computing the block hash with
   the nonce and compare with the provided block hash as well as comparing to set difficulty.
-  Also, the time of creation can't be earlier than previous block. Additionally, the merkle
-  root is calculated for all the transactions included in the block and compared with.
-  This functionality will mainly be used by full nodes in the network, namely miners.
+  Additionally, the merkle root is calculated for all the transactions included in the block
+  and compared with. This functionality will mainly be used by full nodes in the network,
+  namely miners.
+  Either a basic verification is done, which checks difficulty and the block hash.
+  Or a full verification is performed, which further calculates and checks the merkle root. (only done by full nodes)
   """
-  #TODO Implement verification of a block.
-  def verifyBlock() do
+  @spec verifyBlock(Block.t, String.t) :: Boolean.t
+  def verifyBlock(block, response_hash, mode \\ :basic) do
+    header = block.block_header
+    difficulty = header.difficulty
+    unless difficulty <= response_hash, do: raise Block.DiffError
 
+    calculated_hash = generate_block_hash(header)
+    unless calculated_hash == response_hash, do: raise Block.BlockHashError
+
+    if mode == :full do
+      tree = MerkleTree.makeMerkle(block.transactions)
+      unless tree.root.hash_value == header.merkle_root, do: raise Block.MerkleRootError
+    end
+    true
   end
 
 end

@@ -32,7 +32,8 @@ defmodule MerkleTree.Proof do
     @spec generateMerkleProof(MerkleTree.t, String.t, non_neg_integer, non_neg_integer, non_neg_integer) :: Merkle.Proof.t
     def generateMerkleProof(merkle_tree, target_tx, height, index, tx_count) do
         target_hash = MerkleTree.hash(target_tx)
-        hash_values = traverseMerkleTree(merkle_tree.root, target_hash, height, index, tx_count, [])
+        hash_values = traverseMerkleTree(merkle_tree.root, height, index, tx_count, [])
+        unless Enum.at(hash_values, 0) == target_hash, do: raise MerkleTree.ProofError
         %MerkleTree.Proof{
             original_tx: target_tx,
             hash_values: Enum.concat(hash_values, [merkle_tree.root.hash_value])
@@ -45,21 +46,27 @@ defmodule MerkleTree.Proof do
     either left or right subtree of a node depending on the index of the transaction.
     The function keeps an active list which it appends merkle path hashes to while running.
     """
-    @spec traverseMerkleTree(MerkleTree.Node.t, String.t, non_neg_integer, non_neg_integer, non_neg_integer, [String.t, ...]) :: [String.t, ...]
-    def traverseMerkleTree(merkle_node, target_hash, height, _, _, results) when height == 0, do: Enum.concat([target_hash], results)  #Base case, return the leaf hash
-    def traverseMerkleTree(merkle_node, target_hash, height, index, tx_count, results) when div(tx_count, 2) <= index do  #Do right traversal
+    @spec traverseMerkleTree(MerkleTree.Node.t, Integer.t, non_neg_integer, non_neg_integer, [String.t, ...]) :: [String.t, ...]
+    def traverseMerkleTree(merkle_node, height, _, _, results) when height == -1, do: results  #Base case, return the leaf hash
+    def traverseMerkleTree(merkle_node, height, index, tx_count, results) when height == 0 do
+       traverseMerkleTree(
+           merkle_node.children[:right],
+           height-1,
+           index-div(tx_count, 2),
+           div(tx_count, 2),
+           Enum.concat([merkle_node.hash_value], results))
+    end
+    def traverseMerkleTree(merkle_node, height, index, tx_count, results) when div(tx_count, 2) <= index do  #Do right traversal
         traverseMerkleTree(
             merkle_node.children[:right],
-            target_hash,
             height-1,
             index-div(tx_count, 2),
             div(tx_count, 2),
             Enum.concat([merkle_node.children[:left].hash_value], results))
     end
-    def traverseMerkleTree(merkle_node, target_hash, height, index, tx_count, results) when div(tx_count, 2) > index do  #Do left traversal
+    def traverseMerkleTree(merkle_node, height, index, tx_count, results) when div(tx_count, 2) > index do  #Do left traversal
         traverseMerkleTree(
             merkle_node.children[:left],
-            target_hash,
             height-1,
             index,
             div(tx_count, 2),

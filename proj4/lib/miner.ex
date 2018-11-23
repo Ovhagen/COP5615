@@ -15,12 +15,26 @@ defmodule Miner do
   #TODO A miner should hold active lists of block (as well as chains?) when it decides where to put its hashing power.
   #TODO fee priority
 
+  def hash_and_verify(header, nonce) do
+    header = Block.setNonceInHeader(header, nonce)
+    block_hash = Block.generate_block_hash(header)
+    try do
+      Block.verifyBlock(header, [:diff])
+      {:ok, nonce}
+    rescue
+      Block.DiffError -> {:failed, nonce}
+    end
+  end
+
   @doc """
   Starts process of mining by trying to create a valid block hash.
+  Returns the
   """
   @spec mine_block(Block.t, non_neg_integer, non_neg_integer) :: {Boolean.t, Block.t, String.t}
   def mine_block(block, nonce, rounds) do
-
+    nonce..nonce+rounds
+    |> Enum.to_list()
+    |> Task.async_stream(&(hash_and_verify(block.block_header, &1)), []) |> Enum.map(fn x -> x end) |> IO.inspect
   end
 
   def generate_block() do

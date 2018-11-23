@@ -142,13 +142,9 @@ defmodule Block do
     }
   end
 
-  @doc """
-  This function sets a new nonce for the block and returns a new block.
-  """
-  @spec setNonce(Block.t, non_neg_integer) :: Block.t
-  def setNonce(block, new_nonce) do
-    header = block.block_header
-    newHeader = %Block.BlockHeader{
+  @spec setNonceInHeader(Block.BlockHeader.t, non_neg_integer) :: Block.BlockHeader.t
+  def setNonceInHeader(header, new_nonce) do
+    %Block.BlockHeader{
       version: header.version,
       previous_hash: header.previous_hash,
       merkle_root: header.merkle_root,
@@ -156,6 +152,15 @@ defmodule Block do
       difficulty: header.difficulty,
       nonce: new_nonce
     }
+  end
+
+  @doc """
+  This function sets a new nonce for the block and returns a new block.
+  """
+  @spec setNonce(Block.t, non_neg_integer) :: Block.t
+  def setNonce(block, new_nonce) do
+    header = block.block_header
+    newHeader = setNonceInHeader(header, new_nonce)
     newSize = integer_size(new_nonce) - integer_size(header.nonce)
     %Block{
       block_size: if newSize != 0 do block.block_size + newSize else block.block_size end,
@@ -173,20 +178,19 @@ defmodule Block do
   namely miners. Caller can specify how many criterias are of interest for verification.
   A full node or miner would check all conditions.
   """
-  @spec verifyBlock(Block.t, String.t) :: Boolean.t
-  def verifyBlock(block, response_hash, mode \\ [:diff, :block, :merkle]) do
-    header = block.block_header
+  @spec verifyBlock(Block.t, BLock.BlockHeader.t, String.t) :: Boolean.t
+  def verifyBlock(block \\ nil, header, response_hash \\ "", mode \\ [:diff, :block, :merkle]) do
     if Enum.member?(mode, :diff) do
       difficulty = header.difficulty |> endian_converter() |> String.pad_trailing(64, "0")
       unless response_hash |> String.to_integer(16) <= difficulty |> String.to_integer(16), do: raise Block.DiffError
     end
 
-    if Enum.member?(mode, :block) do
+    if Enum.member?(mode, :block) && block != "" do
       calculated_hash = generate_block_hash(header)
       unless calculated_hash == response_hash, do: raise Block.BlockHashError
     end
 
-    if Enum.member?(mode, :merkle) do
+    if Enum.member?(mode, :merkle) && block != nil do
       tree = MerkleTree.makeMerkle(block.transactions)
       unless tree.root.hash_value == header.merkle_root, do: raise Block.MerkleRootError
     end

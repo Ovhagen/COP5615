@@ -39,7 +39,8 @@ defmodule Proj4.BlockTest do
     tree = MerkleTree.makeMerkle(tx_test)
     block = Block.createBlock(tx_test, tree.root.hash_value, prev_hash, nonce)
     block_hash = Block.generate_block_hash(block.block_header)
-    assert(Block.verifyBlock(block, block_hash))
+    assert(Block.verifyBlock(block, block.block_header, block_hash))
+    Miner.mine_block(block, nonce, 1)
   end
 
   test "Fail block verification on difficulty", %{tx_test: tx_test, prev_hash: prev_hash, nonce: nonce} do
@@ -47,21 +48,21 @@ defmodule Proj4.BlockTest do
     block = Block.createBlock(tx_test, tree.root.hash_value, prev_hash, nonce)
     block = Block.setDifficulty(block, 0xFFFF00)
     block_hash = Block.generate_block_hash(block.block_header)
-    assert_raise(Block.DiffError, fn () -> Block.verifyBlock(block, block_hash, [:diff]) end)
+    assert_raise(Block.DiffError, fn () -> Block.verifyBlock(block, block.block_header, block_hash, [:diff]) end)
   end
 
   test "Fail block verification on block hash", %{tx_test: tx_test, prev_hash: prev_hash, nonce: nonce} do
     tree = MerkleTree.makeMerkle(tx_test)
     block = Block.createBlock(tx_test, tree.root.hash_value, prev_hash, nonce)
     block_hash = Block.generate_block_hash(block.block_header) <> "0"
-    assert_raise(Block.BlockHashError, fn () -> Block.verifyBlock(block, block_hash, [:block]) end)
+    assert_raise(Block.BlockHashError, fn () -> Block.verifyBlock(block, block.block_header, block_hash, [:block]) end)
   end
 
   test "Fail block verification on merkle root hash", %{tx_test: tx_test, prev_hash: prev_hash, nonce: nonce} do
     tree = MerkleTree.makeMerkle(tx_test)
     block = Block.createBlock(tx_test, tree.root.hash_value <> "0", prev_hash, nonce)
     block_hash = Block.generate_block_hash(block.block_header)
-    assert_raise(Block.MerkleRootError, fn () -> Block.verifyBlock(block, block_hash, [:merkle]) end)
+    assert_raise(Block.MerkleRootError, fn () -> Block.verifyBlock(block, block.block_header, block_hash, [:merkle]) end)
   end
 
 end

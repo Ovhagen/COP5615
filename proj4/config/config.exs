@@ -29,5 +29,6 @@ use Mix.Config
 #
 #     import_config "#{Mix.env()}.exs"
 
-config :proj4, block_difficulty:     0,
-               block_version:        1
+config :proj4, block_difficulty:     0xFFFFFF,  #Difficulty is converted to little endian.
+               block_version:        1,
+               timestamp:            1542933078

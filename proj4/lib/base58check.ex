@@ -1,5 +1,6 @@
 defmodule Base58Check do
-
+  import Crypto
+  
   @doc """
   Encodes data as a Base58Check string, which appends a checksum to the data to protect against errors.
   """
@@ -40,7 +41,4 @@ defmodule Base58Check do
     |> Enum.take(4)
     |> :binary.list_to_bin
   end
-  
-  # Hashes data using SHA256.
-  defp sha256(data), do: :crypto.hash(:sha256, data)
 end

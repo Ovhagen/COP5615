@@ -1,4 +1,6 @@
 defmodule KeyAddress do
+  import Crypto
+  
   @private_key 0x80
   @public_key  0x04
   @cpk_even    0x02
@@ -33,7 +35,7 @@ defmodule KeyAddress do
     >>
   end
   
-  def pubkey_to_pkh(key) when is_binary(key), do: :crypto.hash(:ripemd160, :crypto.hash(:sha256, key))
+  def pubkey_to_pkh(key) when is_binary(key), do: key |> sha256 |> ripemd160
   
   def pkh_to_address(pkh) when is_binary(pkh), do: Base58Check.encode(<<@address>>, pkh)
   

@@ -40,7 +40,6 @@ defmodule Proj4.BlockTest do
     block = Block.createBlock(tx_test, tree.root.hash_value, prev_hash, nonce)
     block_hash = Block.generate_block_hash(block.block_header)
     assert(Block.verifyBlock(block, block.block_header, block_hash))
-    Miner.mine_block(block, nonce, 1)
   end
 
   test "Fail block verification on difficulty", %{tx_test: tx_test, prev_hash: prev_hash, nonce: nonce} do

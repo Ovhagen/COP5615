@@ -179,13 +179,13 @@ defmodule Block do
   A full node or miner would check all conditions.
   """
   @spec verifyBlock(Block.t, BLock.BlockHeader.t, String.t) :: Boolean.t
-  def verifyBlock(block \\ nil, header, response_hash \\ "", mode \\ [:diff, :block, :merkle]) do
+  def verifyBlock(block \\ nil, header, response_hash, mode \\ [:diff, :block, :merkle]) do
     if Enum.member?(mode, :diff) do
       difficulty = header.difficulty |> endian_converter() |> String.pad_trailing(64, "0")
       unless response_hash |> String.to_integer(16) <= difficulty |> String.to_integer(16), do: raise Block.DiffError
     end
 
-    if Enum.member?(mode, :block) && block != "" do
+    if Enum.member?(mode, :block) do
       calculated_hash = generate_block_hash(header)
       unless calculated_hash == response_hash, do: raise Block.BlockHashError
     end

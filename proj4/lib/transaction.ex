@@ -2,6 +2,7 @@ defmodule Transaction do
   import Crypto
   
   @tx_version 1
+  @coinbase 0xff
   
   defmodule Witness do
     defstruct pubkey: <<>>, sig: <<>>
@@ -22,8 +23,20 @@ defmodule Transaction do
       :crypto.verify(:ecdsa, :sha256, msg, sig, [KeyAddress.uncompress_pubkey(pubkey), :secp256k1])
     end
     
+    @doc """
+    Turns the witness data into raw bytes for hashing, transmitting and writing to disk.
+    For coinbase transactions, the coinbase data is stored in the witness location so it must be handled as well.
+    """
+    @spec deserialize(binary) :: t | binary
     def serialize(%Witness{pubkey: pubkey, sig: sig}), do: pubkey <> sig
+    def serialize(coinbase) when is_binary(coinbase), do: coinbase
     
+    @doc """
+    Reproduces the witness data structure from raw bytes.
+    For coinbase transactions, the coinbase data is stored in the witness location so it must be handled as well.
+    """
+    @spec deserialize(binary) :: t | binary
+    def deserialize(<<coinbase::binary-34, 0x00>>), do: coinbase
     def deserialize(<<pubkey::binary-33, sig::binary>>), do: %Witness{pubkey: pubkey, sig: sig}
     def deserialize(<<>>), do: %Witness{}
   end
@@ -32,10 +45,19 @@ defmodule Transaction do
     defstruct txid: <<>>, vout: 0, witness: %Witness{}
     
     @type t :: %Vin{
-      txid:    <<_::256>>,
+      txid:    Crypto.hash256,
       vout:    byte,
-      witness: Witness.t
+      witness: Witness.t | binary
     }
+    
+    @spec new(Crypto.hash256, byte, Witness.t | binary) :: t
+    def new(txid, vout, witness \\ %Witness{}) do
+      %Vin{
+        txid:    txid,
+        vout:    vout,
+        witness: witness
+      }
+    end
     
     def verify([%Vin{witness: witness} | tail], msg), do: Vin.verify(witness, msg) && verify(tail, msg)
     def verify(%Vin{witness: witness}, msg), do: Witness.verify(witness, msg)
@@ -64,7 +86,7 @@ defmodule Transaction do
     
     @type t :: %Vout{
       value: non_neg_integer,
-      pkh:   <<_::160>>
+      pkh:   Crypto.hash160
     }
     
     def serialize([vout | tail]), do: serialize(vout) <> serialize(tail)
@@ -78,11 +100,25 @@ defmodule Transaction do
   
   @type t :: %Transaction{
     version: non_neg_integer,
-    vin:     [Vin.t, ...],
+    vin:     [Vin.t, ...] | Coinbase.t,
     vout:    [Vout.t, ...]
   }
   
+  def sign(tx, pubkeys, privkeys) do
+    sighash = sighash(tx)
+    Map.update!(tx, :vin, fn vin ->
+      Enum.zip(vin, Enum.zip(pubkeys, privkeys))
+      |> Enum.map(fn {vin, {pubkey, privkey}} -> 
+           Map.put(vin, :witness, Witness.sign(pubkey, privkey, sighash))
+         end)
+    end)
+  end
+  
   def verify(%Transaction{vin: vins} = tx), do: Vin.verify(vins, sighash(tx))
+  
+  def sighash(tx), do: serialize(tx, true) |> sha256x2
+  
+  def hash(tx), do: serialize(tx, false) |> sha256x2
   
   def serialize(%Transaction{version: version, vin: vin, vout: vout}, sighash \\ false) do
     <<version::8>>
@@ -103,16 +139,4 @@ defmodule Transaction do
     deserialize(data, vins-1, nil, Map.update!(tx, :vin, &(&1 ++ [Vin.deserialize(vin)])))
   end
   defp deserialize(<<vout::binary-24, data::binary>>, 0, vouts, tx), do: deserialize(data, 0, vouts-1, Map.update!(tx, :vout, &(&1 ++ [Vout.deserialize(vout)])))
-  
-  def sighash(tx), do: serialize(tx, true) |> sha256 |> sha256
-  
-  def sign(tx, pubkeys, privkeys) do
-    sighash = sighash(tx)
-    Map.update!(tx, :vin, fn vin ->
-      Enum.zip(vin, Enum.zip(pubkeys, privkeys))
-      |> Enum.map(fn {vin, {pubkey, privkey}} -> 
-           Map.put(vin, :witness, Witness.sign(pubkey, privkey, sighash))
-         end)
-    end)
-  end
 end

@@ -1,4 +1,5 @@
 defmodule Blockchain do
+  @coin 1_000_000
   
   defstruct blocks: [], height: 0, utxo: %{}
   
@@ -17,5 +18,13 @@ defmodule Blockchain do
       end)
     q_out = Enum.reduce(vout, 0, &(&2 + Map.get(&1, :value)))
     q_in >= 0 and q_in - q_out >= 0
+  end
+  
+  def block_subsidy(_height) do
+    50 * @coin # constant block reward for now
+  end
+  
+  def next_target(_chain, t) do
+    t # just keep current target
   end
 end

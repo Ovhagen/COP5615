@@ -15,8 +15,6 @@ defmodule Miner do
   #TODO A miner should hold active lists of block (as well as chains?) when it decides where to put its hashing power.
   #TODO fee priority
 
-  def 
-
   def hash_and_verify(header, nonce) do
     header = Block.setNonceInHeader(header, nonce)
     block_hash = Block.generate_block_hash(header)

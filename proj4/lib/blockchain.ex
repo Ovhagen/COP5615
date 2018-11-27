@@ -1,4 +1,6 @@
 defmodule Blockchain do
+  import Crypto
+
   @coin 1_000_000
 
   defmodule Link do
@@ -10,16 +12,28 @@ defmodule Blockchain do
       height: non_neg_integer
     }
   end
+  
+  @type utxo :: %{required(<<_::264>>) => Transaction.Vout.t}
+  @type mempool :: %{required(<<Crypto.hash256>>) => Transaction.t}
 
-  defstruct tip: %Block{}, utxo: %{}, mempool: %{}
+  defstruct tip: %Link{}, utxo: %{}, mempool%{}
 
-  def verify(%Blockchain{} = bc, %Transaction{} = tx), do: Transaction.verify(tx) and verify_value(bc, tx)
-  defp verify_value(%Blockchain{utxo: utxo}, %Transaction{vin: vin, vout: vout}) do
-    q_in = Enum.reduce_while(vin, 0, fn %Transaction.Vin{txid: txid, vout: vout, witness: %Transaction.Witness{pubkey: pubkey}}, total ->
-        case Map.fetch(utxo, txid <> <<vout::8>>) do
-          {:ok, %Transaction.Vout{value: value, pkh: pkh}} ->
-            if KeyAddress.pubkey_to_pkh(pubkey) == pkh do
-              {:cont, total + value}
+  def verify_tx(bc, tx) do
+    Transaction.verify(tx)
+    case get_utxo(bc.utxo, tx) do
+      :error -> false
+      utxo   ->
+
+      and verify_pkh(bc.utxo, tx)
+      and verify_
+
+  end
+  defp verify_utxo(utxo, %Transaction{vin: vin}) do
+    q_in = Enum.reduce_while(vin, 0, fn vin, total ->
+        case Map.fetch(utxo, vin.txid <> <<vin.vout::8>>) do
+          {:ok, vout} ->
+            if KeyAddress.pubkey_to_pkh(vout.pubkey) == pkh do
+              {:cont, total + vout.value}
             else
               {:halt, -1}
             end
@@ -31,7 +45,15 @@ defmodule Blockchain do
   end
 
   def verify(%Blockchain{} = bc, %Block{} = b) do
-    # do stuff
+    # 1. Block points to tip of current blockchain
+    # 2. Block is internally valid (merkle root and hash value)
+    # 3. Difficulty target is correct
+    # 4. All transactions are in the mempool (or could be added to the mempool)
+    # 5. Coinbase transaction is correct (structure, fees and reward correct)
+  end
+
+  def tx_fee(%Transaction{vin: vin, vout: vout}, utxo) do
+    Enum.reduce(vin, 0, &(&2 + Map.get(utxo, &1.txid <> <<&1.vout::8>>)))
   end
 
   def block_subsidy(_height) do

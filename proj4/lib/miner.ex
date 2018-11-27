@@ -15,70 +15,36 @@ defmodule Miner do
   #TODO A miner should hold active lists of block (as well as chains?) when it decides where to put its hashing power.
   #TODO fee priority
 
+  def 
 
-  @doc """
-  This function generates block hashes and verifies them against the
-  initial difficulty by continously incrementing the nonce. If a valid hash
-  is found, it is returned. Otherwise a difficulty error is thrown.
-  """
-  #TODO Increment nonce in transaction further if nonce is capped.
   def hash_and_verify(header, nonce) do
     header = Block.setNonceInHeader(header, nonce)
     block_hash = Block.generate_block_hash(header)
     try do
       hash = Block.verifyBlock(nil, header, block_hash, [:diff])
-      {:ok, nonce, block_hash}
+      {:ok, nonce, hash}
     rescue
-      Block.DiffError -> {:failed}
+      Block.DiffError -> {:failed, nonce}
     end
   end
 
   @doc """
   Starts process of mining by trying to create a valid block hash.
-  Returns the first valid hash found in the number of rounds specified with
-  the newly mined block.
+  Returns the
   """
   @spec mine_block(Block.t, non_neg_integer, non_neg_integer) :: {Boolean.t, Block.t, String.t}
   def mine_block(block, nonce, rounds) do
     results = nonce..nonce+rounds
     |> Enum.to_list()
-    |> Task.async_stream(&(hash_and_verify(block.block_header, &1)))
-    |> Enum.map(fn x -> x end)
-    |> Enum.filter(fn ({:ok, p})-> if elem(p, 0) == :ok do {elem(p,1), elem(p,2)} end end) |> IO.inspect
-    |> Enum.map(fn ({:ok, p}) -> {elem(p,1), elem(p,2)} end)
-    |> List.first()
-
-    if results != nil do
-      {Block.setNonce(block, elem(results, 0)), elem(results, 1)}
-    else
-      nil
-    end
+    |> Task.async_stream(&(hash_and_verify(block.block_header, &1))) |> Enum.map(fn x -> x end) |> Enum.map(fn ({:ok, p})-> if elem(p, 0) == :ok do {elem(p,1), elem(p,2)} end end)
   end
 
-  @doc """
-  Generates a block for a miner. A miner can take this block and start
-  mining the block_header to try and find a valid block hash. Furthermore,
-  transactions are validated before being included in the block. Also
-  this function includes a coinbase transaction for the miner as the leftmost
-  leaf in the merkle tree.
-  """
-  #TODO exception when transactions are not valid. Return custom error.
   def generate_block(transactions, prev_hash, nonce) do
     #Check that transactions have available balance
     #Collect fees
     #Include coinbase transaction
     tree = MerkleTree.makeMerkle(transactions)
     Block.createBlock(transactions, tree.root.hash_value, prev_hash, nonce)
-  end
-
-  @doc """
-  This function processes a new block to potentially be added to the block chain.
-  A miner who has received a new broadcasted block must be able to verify transaction
-  balances for all txs in the block. Also verifies the new block on difficulty, block hash correctness
-  and merkle root calculation.
-  """
-  def process_new_block(block) do
-    [[]]
   end
 
 end

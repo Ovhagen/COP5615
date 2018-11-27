@@ -39,6 +39,8 @@ defmodule Transaction do
     def deserialize(<<coinbase::binary-34, 0x00>>), do: coinbase
     def deserialize(<<pubkey::binary-33, sig::binary>>), do: %Witness{pubkey: pubkey, sig: sig}
     def deserialize(<<>>), do: %Witness{}
+    
+    def bytes(%Witness{sig: sig}), do: 33 + byte_size(sig)
   end
   
   defmodule Vin do
@@ -79,6 +81,9 @@ defmodule Transaction do
         witness: Witness.deserialize(witness)
       }
     end
+    
+    def bytes(%Vin{witness: witness}) when is_binary(witness), do: 33 + byte_size(witness)
+    def bytes(%Vin{witness: witness}), do: 33 + Witness.bytes(witness)
   end
 
   defmodule Vout do
@@ -94,6 +99,8 @@ defmodule Transaction do
     def serialize([]), do: <<>>
     
     def deserialize(<<value::32, pkh::binary-20>>), do: %Vout{value: value, pkh: pkh}
+    
+    def bytes(_vout), do: 24
   end
   
   defstruct version: @tx_version, vin: [], vout: []
@@ -139,4 +146,10 @@ defmodule Transaction do
     deserialize(data, vins-1, nil, Map.update!(tx, :vin, &(&1 ++ [Vin.deserialize(vin)])))
   end
   defp deserialize(<<vout::binary-24, data::binary>>, 0, vouts, tx), do: deserialize(data, 0, vouts-1, Map.update!(tx, :vout, &(&1 ++ [Vout.deserialize(vout)])))
+  
+  def bytes(%Transaction{vin: vin, vout: vout}) do
+    Enum.reduce(vin, 0, &(&2 + Vin.bytes(&1)))
+      + Enum.reduce(vout, 0, &(&2 + Vout.bytes(&1)))
+      + 3
+  end
 end

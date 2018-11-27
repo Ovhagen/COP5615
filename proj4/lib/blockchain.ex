@@ -1,9 +1,19 @@
 defmodule Blockchain do
   @coin 1_000_000
   
-  defstruct blocks: [], height: 0, utxo: %{}
+  defmodule Link do
+    defstruct block: %Block{}, prev: %Block{}, height: 0
+    
+    @type t :: %Link{
+      block:  Block.t,
+      prev:   Block.t,
+      height: non_neg_integer
+    }
+  end
   
-  def verify(%Blockchain{} = b, %Transaction{} = tx), do: Transaction.verify(tx) and verify_value(b, tx)
+  defstruct tip: %Block{}, utxo: %{}, mempool%{}
+  
+  def verify(%Blockchain{} = bc, %Transaction{} = tx), do: Transaction.verify(tx) and verify_value(bc, tx)
   defp verify_value(%Blockchain{utxo: utxo}, %Transaction{vin: vin, vout: vout}) do
     q_in = Enum.reduce_while(vin, 0, fn %Transaction.Vin{txid: txid, vout: vout, witness: %Transaction.Witness{pubkey: pubkey}}, total ->
         case Map.fetch(utxo, txid <> <<vout::8>>) do
@@ -19,6 +29,13 @@ defmodule Blockchain do
     q_out = Enum.reduce(vout, 0, &(&2 + Map.get(&1, :value)))
     q_in >= 0 and q_in - q_out >= 0
   end
+  
+  def verify(%Blockchain{} = bc, %Block{} = b) do
+    # do stuff
+  end
+  
+  def tx_fee(%Transaction{vin: vin, vout: vout}, utxo) do
+    Enum.reduce(vin, 0, &(&2 + Map.get(utxo, &1.txid <> <<&1.vout::8>>)))
   
   def block_subsidy(_height) do
     50 * @coin # constant block reward for now

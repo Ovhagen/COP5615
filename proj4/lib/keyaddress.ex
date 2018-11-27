@@ -22,8 +22,10 @@ defmodule KeyAddress do
       x::256
     >>
   end
+  def compress_pubkey(<<pubkey::binary-33>>), do: pubkey
   
-  def uncompress_pubkey(<<prefix::integer, x::256>>) do
+  def uncompress_pubkey(<<0x04, _::256>> = pubkey), do: pubkey
+  def uncompress_pubkey(<<prefix::8, x::256>>) do
     {{_, <<p::integer-256>>}, {<<a::integer>>, <<b::integer>>, _}, _, _, _} = :crypto.ec_curve(:secp256k1)
     y = modpow(x, 3, p) + a * modpow(x, 2, p) + b
       |> rem(p)
@@ -35,7 +37,7 @@ defmodule KeyAddress do
     >>
   end
   
-  def pubkey_to_pkh(key) when is_binary(key), do: key |> sha256 |> ripemd160
+  def pubkey_to_pkh(key) when is_binary(key), do: compress_pubkey(key) |> sha256 |> ripemd160
   
   def pkh_to_address(pkh) when is_binary(pkh), do: Base58Check.encode(<<@address>>, pkh)
   

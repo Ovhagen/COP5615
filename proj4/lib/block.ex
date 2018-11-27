@@ -1,5 +1,5 @@
 defmodule Block do
-    @moduledoc """
+  @moduledoc """
   This module defines a full block in the bitcoin protocol. Blocks are
   created by miners. Full nodes in the network will store whole blocks.
 

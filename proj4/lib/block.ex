@@ -24,7 +24,7 @@ defmodule Block do
         version: @version,
         previous_hash: previous_hash,
         merkle_root: merkle_root,
-        timestamp: DateTime.utc_now,
+        timestamp: DateTime.utc_now |> DateTime.to_unix,
         target: target,
         nonce: nonce
       }

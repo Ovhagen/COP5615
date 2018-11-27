@@ -38,6 +38,7 @@ defmodule Proj4.BlockTest do
   test "Successfully verifying a block", %{tx_test: tx_test, prev_hash: prev_hash, nonce: nonce} do
     tree = MerkleTree.makeMerkle(tx_test)
     block = Block.createBlock(tx_test, tree.root.hash_value, prev_hash, nonce)
+    block = Block.setDifficulty(block, 0xFFFFFF)
     block_hash = Block.generate_block_hash(block.block_header)
     assert(Block.verifyBlock(block, block.block_header, block_hash))
   end

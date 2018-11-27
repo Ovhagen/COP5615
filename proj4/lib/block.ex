@@ -31,6 +31,9 @@ defmodule Block do
       transactions: transactions
   }
 
+  @doc """
+  Performs a two-round hash on the inputted hash and converts to Base16.
+  """
   @spec double_hash(String.t) :: String.t
   def double_hash(data) do
     thedata = <<Integer.parse(data, 16)|> elem(0)::640>>
@@ -104,7 +107,7 @@ defmodule Block do
       version: Application.get_env(:proj4, :block_version),
       previous_hash: List.to_string(prev_hash),
       merkle_root: merkle_root,
-      timestamp: Application.get_env(:proj4, :timestamp),#:os.system_time(:seconds),
+      timestamp: :os.system_time(:seconds),
       difficulty: Application.get_env(:proj4, :block_difficulty),
       nonce: nonce
     }

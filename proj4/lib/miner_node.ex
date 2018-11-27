@@ -1,9 +1,17 @@
-defmodule Proj2.MinerNode do
+defmodule Proj4.MinerNode do
   @moduledoc """
   """
   use GenServer
 
-  ## Client API
+  #TODO Periodically check messages and collect new blocks, new transactions.
+  #TODO Mine asynchronously (or synchronous) then create block if block hash is found.
+  #TODO Keep active list of blocks, transactions and neighbors
+  #TODO Verify blocks and accept them. If failed send back failure message. (for future version?)
+  #TODO Send out new blocks, merkle proofs, block requests for full nodes,
+  #block header requests from clients.
+  #TODO Have active wallet
+
+
 
   @doc """
   Starting and linking the GenServer process.
@@ -48,15 +56,6 @@ defmodule Proj2.MinerNode do
 
 
   def handle_info(:transmit, %{mode: mode, data: data, neighbors: neighbors, sent: sent, tx_fn: tx_fn, mode_fn: mode_fn} = state) do
-    {data, gossip} = tx_fn.(data)
-    gossip(Enum.random(neighbors), gossip)
-	Process.send_after(self(), :transmit, get_delay())
-	{:noreply,
-      state
-	   |> Map.put(:mode, mode_fn.(:send, mode, data))
-	   |> Map.put(:data, data)
-	   |> Map.put(:sent, sent+1),
-	  {:continue, mode}}
   end
 
   @doc """

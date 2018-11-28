@@ -3,48 +3,44 @@ defmodule Blockchain do
   
   @coin 1_000_000
   
-  defmodule Link do
-    defstruct block: %Block{}, prev: %Block{}, height: 0
-    
-    @type t :: %Link{
-      block:  Block.t,
-      prev:   Block.t,
-      height: non_neg_integer
-    }
-  end
-  
   @type utxo :: %{required(<<_::264>>) => Transaction.Vout.t}
   @type mempool :: %{required(<<Crypto.hash256>>) => Transaction.t}
   
-  defstruct tip: %Link{}, utxo: %{}, mempool%{}
+  defstruct tip: %Blockchain.Link{}, utxo: %{}, mempool%{}
   
   def verify_tx(bc, tx) do
     Transaction.verify(tx)
-    case get_utxo(bc.utxo, tx) do
+    case get_utxo(bc.utxo, tx.vin) do
       :error -> false
-      utxo   ->
-        
-      and verify_pkh(bc.utxo, tx)
-      and verify_
-
-  end
-  defp verify_utxo(utxo, %Transaction{vin: vin}) do
-    q_in = Enum.reduce_while(vin, 0, fn vin, total ->
-        case Map.fetch(utxo, vin.txid <> <<vin.vout::8>>) do
-          {:ok, vout} ->
-            if KeyAddress.pubkey_to_pkh(vout.pubkey) == pkh do
-              {:cont, total + vout.value}
-            else
-              {:halt, -1}
-            end
-          :error -> {:halt, -1}
-        end
-      end)
-    q_out = Enum.reduce(vout, 0, &(&2 + Map.get(&1, :value)))
-    q_in >= 0 and q_in - q_out >= 0
+      vout   -> verify_pkh(vout, tx.vin) and tx_fee(vout, tx.vout) > 0
+    end
   end
   
-  def verify(%Blockchain{} = bc, %Block{} = b) do
+  def get_utxo(utxo, vin) do
+    Enum.reduce_while(vin, [], fn vin, acc ->
+      case Map.fetch(utxo, vin.txid <> <<vin.vout::8>>) do
+        {:ok, vout} -> {:cont, acc ++ [vout]}
+        :error      -> {:halt, :error}
+      end
+    end)
+  end
+  
+  def verify_pkh(vout, vin) do
+    Enum.zip(vout, vin)
+    |> Enum.reduce_while(true, fn {vo, vi}, valid ->
+         if vo.pkh == KeyAddress.pubkey_to_pkh(vi.witness.pubkey) do
+           {:cont, true}
+         else
+           {:halt, false}
+         end
+       end)
+  end
+  
+  def tx_fee(vin, vout), do: sum_value(vin) - sum_value(vout)
+  
+  defp sum_value(vout), do: Enum.reduce(vout, 0, &(&2 + &1.value))
+  
+  def verify_block(%Blockchain{} = bc, %Block{} = b) do
     # 1. Block points to tip of current blockchain
     # 2. Block is internally valid (merkle root and hash value)
     # 3. Difficulty target is correct
@@ -52,9 +48,7 @@ defmodule Blockchain do
     # 5. Coinbase transaction is correct (structure, fees and reward correct)
   end
   
-  def tx_fee(%Transaction{vin: vin, vout: vout}, utxo) do
-    Enum.reduce(vin, 0, &(&2 + Map.get(utxo, &1.txid <> <<&1.vout::8>>)))
-  end
+  
   
   def block_subsidy(_height) do
     50 * @coin # constant block reward for now

@@ -12,6 +12,7 @@ defmodule MerkleTree do
 
   defstruct root: %MerkleTree.Node{}, leaves: 0
 
+  @type merkle_proof :: [{:left | :right, Crypto.hash256}, ...]
   @type t :: %MerkleTree{
     root:   MerkleTree.Node.t | MerkleTree.Leaf.t,
     leaves: non_neg_integer
@@ -36,7 +37,7 @@ defmodule MerkleTree do
   end
 
   @doc """
-  Replaces the transaction at the specified index with a different transaction.
+  Replaces the transaction at the specified index with a different transaction, and rehashes the path up to the root.
   Primarily used to update the coinbase transaction when mining.
   """
   @spec update_tx(t, Transaction.t, non_neg_integer) :: t
@@ -96,7 +97,7 @@ defmodule MerkleTree do
   Returns a merkle proof, which is a sequence of hash values that prove a particular transaction is contained within the block with the given merkle root.
   To follow the proof, sequentially concatenate (to the left or right as indicated) and hash each value in the list.
   """
-  @spec proof(t | MerkleTree.Node.t | nil, Crypto.hash256) :: {:ok, [{:left | :right, Crypto.hash256}, ...]} | :error
+  @spec proof(t | MerkleTree.Node.t | nil, Crypto.hash256) :: merkle_proof | :error
   def proof(%MerkleTree{root: root}, txid), do: proof(root, txid)
   def proof(%MerkleTree.Node{} = node, txid) do
     case proof(node.left, txid) do
@@ -118,6 +119,18 @@ defmodule MerkleTree do
   end
   def proof(%MerkleTree.Leaf{hash: hash} = leaf, txid), do: (if hash == txid, do: {:ok, [hash]}, else: :error)
   def proof(nil, _txid), do: :error
+  
+  @doc """
+  Solves a merkle proof by sequentially hashing the values until the merkle root is produced.
+  Return true if the sequence of hashes is equal to the root, false otherwise.
+  """
+  @spec solve_proof(merkle_proof, Crypto.hash256) :: boolean
+  def solve_proof([leaf | nodes], root) do
+    root == Enum.reduce(nodes, leaf, fn
+        {:right, hash}, proof -> sha256x2(proof <> hash)
+        {:left, hash}, proof -> sha256x2(hash <> proof)
+      end)
+  end
 
   # Rounds n up to a power of 2.
   defp ceil2(n), do: :math.pow(2, n |> :math.log2 |> :math.ceil) |> trunc

@@ -1,8 +1,9 @@
 defmodule Transaction do
   import Crypto
   
-  @tx_version 1
-  @coinbase 0xff
+  @tx_version  1
+  @coinbase    0xff
+  @max_outputs 254
   
   defmodule Witness do
     defstruct pubkey: <<>>, sig: <<>>
@@ -12,13 +13,22 @@ defmodule Transaction do
       sig:    binary
     }
     
-    def sign(pubkey, privkey, sighash) do
+    @doc """
+    Signs a transaction, creating a new witness from a key pair and a transaction hash.
+    """
+    @spec sign(binary, binary, Crypto.hash256) :: t
+    def sign(pubkey, privkey, msg) do
       %Witness{
         pubkey: KeyAddress.compress_pubkey(pubkey),
-        sig: :crypto.sign(:ecdsa, :sha256, sighash, [privkey, :secp256k1])
+        sig: :crypto.sign(:ecdsa, :sha256, msg, [privkey, :secp256k1])
       }
     end
     
+    @doc """
+    Verifies that the witness provided was produced using the same transaction hash with the private key corresponding to the public key.
+    Returns true if the witness is valid, false otherwise.
+    """
+    @spec verify(t, Crypto.hash256) :: boolean
     def verify(%Witness{pubkey: pubkey, sig: sig}, msg) do
       :crypto.verify(:ecdsa, :sha256, msg, sig, [KeyAddress.uncompress_pubkey(pubkey), :secp256k1])
     end
@@ -27,7 +37,7 @@ defmodule Transaction do
     Turns the witness data into raw bytes for hashing, transmitting and writing to disk.
     For coinbase transactions, the coinbase data is stored in the witness location so it must be handled as well.
     """
-    @spec deserialize(binary) :: t | binary
+    @spec serialize(t | binary) :: binary
     def serialize(%Witness{pubkey: pubkey, sig: sig}), do: pubkey <> sig
     def serialize(coinbase) when is_binary(coinbase), do: coinbase
     
@@ -40,6 +50,10 @@ defmodule Transaction do
     def deserialize(<<pubkey::binary-33, sig::binary>>), do: %Witness{pubkey: pubkey, sig: sig}
     def deserialize(<<>>), do: %Witness{}
     
+    @doc """
+    Calculates the byte length of the raw witness data.
+    """
+    @spec bytes(t) :: pos_integer
     def bytes(%Witness{sig: sig}), do: 33 + byte_size(sig)
   end
   
@@ -52,19 +66,31 @@ defmodule Transaction do
       witness: Witness.t | binary
     }
     
-    @spec new(Crypto.hash256, byte, Witness.t | binary) :: t
-    def new(txid, vout, witness \\ %Witness{}) do
+    @doc """
+    Creates a new transaction input. Requires a transaction hash and output index corresponding to the UTXO.
+    """
+    @spec new(Crypto.hash256, byte) :: t
+    def new(txid, vout) do
       %Vin{
         txid:    txid,
         vout:    vout,
-        witness: witness
+        witness: %Witness{}
       }
     end
     
+    @doc """
+    Verifies the witness contained in this input. See Witness.verify/2 for more details.
+    """
+    @spec verify(t | [t], Crypto.hash256) :: boolean
     def verify([%Vin{witness: witness} | tail], msg), do: Vin.verify(witness, msg) && verify(tail, msg)
     def verify(%Vin{witness: witness}, msg), do: Witness.verify(witness, msg)
     def verify([], _msg), do: true
     
+    @doc """
+    Turns the input data into raw bytes for hashing, transmitting and writing to disk.
+    The sighash option removes the witness data from the output, and should be set to true if the output will be used as a transaction hash for signing.
+    """
+    @spec serialize(t | [t], boolean) :: binary
     def serialize(vin, sighash \\ false)
     def serialize([vin | tail], sighash), do: serialize(vin, sighash) <> serialize(tail, sighash)
     def serialize(%Vin{txid: txid, vout: vout, witness: witness}, sighash) do
@@ -74,6 +100,10 @@ defmodule Transaction do
     end
     def serialize([], _sighash), do: <<>>
     
+    @doc """
+    Reproduces the input data structure from raw bytes.
+    """
+    @spec deserialize(binary) :: t
     def deserialize(<<txid::binary-32, vout::8, witness::binary>>) do
       %Vin{
         txid:    txid,
@@ -82,6 +112,10 @@ defmodule Transaction do
       }
     end
     
+    @doc """
+    Calculates the byte length of the raw input data.
+    """
+    @spec bytes(t) :: pos_integer
     def bytes(%Vin{witness: witness}) when is_binary(witness), do: 33 + byte_size(witness)
     def bytes(%Vin{witness: witness}), do: 33 + Witness.bytes(witness)
   end

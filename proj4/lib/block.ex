@@ -18,6 +18,11 @@ defmodule Block do
     merkle_tree:  MerkleTree.t
   }
 
+  @doc """
+  Creates a new Block with the provided data.
+  Requires a list of transactions, the previous block hash, and a difficulty target. A nonce can also be provided (defaults to 0).
+  """
+  @spec new([Transaction.t, ...], Crypto.hash256, <<_::32>>, non_neg_integer) :: binary
   def new(transactions, previous_hash, target, nonce \\ 0) do
     merkle_tree = MerkleTree.build_tree(transactions)
     %Block{
@@ -34,7 +39,7 @@ defmodule Block do
   This does NOT verify that a block is valid within a specific blockchain, only that it has been constructed correctly.
   """
   @spec verify(t) :: boolean
-  def verify(%Block{} = block) do
+  def verify(block) do
     verify_version(block)
       and verify_timestamp(block)
       and verify_merkle(block)
@@ -45,7 +50,11 @@ defmodule Block do
   defp verify_merkle(block), do: block.merkle_tree.root.hash == block.header.merkle_root
   defp verify_hash(block), do: Block.Header.block_hash(block.header) < calc_target(block.header.target)
 
-  def serialize(%Block{} = block) do
+  @doc """
+  Turns a Block data structure into raw bytes for transmitting and writing to disk.
+  """
+  @spec serialize(t) :: binary
+  def serialize(block) do
     Block.Header.serialize(block.header)
       <> <<block.tx_counter::32>>
       <> Enum.reduce(Enum.reverse(block.transactions), <<>>, fn tx, acc ->
@@ -54,10 +63,11 @@ defmodule Block do
          end)
   end
 
+  # To be implemented
   def deserialize(data)
 
   @doc """
-  Calculates the difficulty target from the 4-byte representation in the block header.
+  Calculates the difficulty target from the 4-byte representation in the block header. A valid block must have a block hash that is less than this value.
   """
   @spec calc_target(<<_::32>>) :: non_neg_integer
   def calc_target(<<e::8, c::24>>), do: c <<< (8 * (e - 3))

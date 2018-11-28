@@ -1,6 +1,6 @@
 defmodule Blockchain do
   import Crypto
-  
+
   @coin 1_000_000
   
   @type utxo :: %{required(<<_::264>>) => Transaction.Vout.t}
@@ -14,6 +14,7 @@ defmodule Blockchain do
       :error -> false
       vout   -> verify_pkh(vout, tx.vin) and tx_fee(vout, tx.vout) > 0
     end
+
   end
   
   def get_utxo(utxo, vin) do
@@ -46,14 +47,12 @@ defmodule Blockchain do
     # 3. Difficulty target is correct
     # 4. All transactions are in the mempool (or could be added to the mempool)
     # 5. Coinbase transaction is correct (structure, fees and reward correct)
-  end
-  
-  
-  
+  end  
+
   def block_subsidy(_height) do
     50 * @coin # constant block reward for now
   end
-  
+
   def next_target(_chain, t) do
     t # just keep current target
   end

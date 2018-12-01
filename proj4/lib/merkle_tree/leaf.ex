@@ -1,6 +1,8 @@
 defmodule MerkleTree.Leaf do
   import Crypto
-
+  @moduledoc """
+  This module specifies a merkle tree leaf which is an edge node in the merkle tree.
+  """
   defstruct [:hash, :tx]
 
   @type t :: %MerkleTree.Leaf{

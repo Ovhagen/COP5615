@@ -97,7 +97,8 @@ defmodule MerkleTree do
   Returns a merkle proof, which is a sequence of hash values that prove a particular transaction is contained within the block with the given merkle root.
   To follow the proof, sequentially concatenate (to the left or right as indicated) and hash each value in the list.
   """
-  @spec proof(t | MerkleTree.Node.t | nil, Crypto.hash256) :: merkle_proof | :error
+  @spec proof(t | MerkleTree.Node.t | nil, Crypto.hash256 | Transaction.t) :: merkle_proof | :error
+  def proof(tree, %Transaction{} = tx), do: proof(tree, Transaction.hash(tx))
   def proof(%MerkleTree{root: root}, txid), do: proof(root, txid)
   def proof(%MerkleTree.Node{} = node, txid) do
     case proof(node.left, txid) do
@@ -119,7 +120,7 @@ defmodule MerkleTree do
   end
   def proof(%MerkleTree.Leaf{hash: hash} = leaf, txid), do: (if hash == txid, do: {:ok, [hash]}, else: :error)
   def proof(nil, _txid), do: :error
-  
+
   @doc """
   Solves a merkle proof by sequentially hashing the values until the merkle root is produced.
   Return true if the sequence of hashes is equal to the root, false otherwise.

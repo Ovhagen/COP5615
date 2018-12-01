@@ -96,7 +96,7 @@ defmodule Transaction do
     Verifies the witness contained in this input. See Witness.verify/2 for more details.
     """
     @spec verify(t | [t], Crypto.hash256) :: boolean
-    def verify([%Vin{witness: witness} | tail], msg), do: Vin.verify(witness, msg) && verify(tail, msg)
+    def verify([vin | tail], msg), do: Vin.verify(vin, msg) && verify(tail, msg)
     def verify(%Vin{witness: witness}, msg), do: Witness.verify(witness, msg)
     def verify([], _msg), do: true
 
@@ -217,11 +217,11 @@ defmodule Transaction do
     <<vin::binary-size(bytes), data::binary>> = data
     deserialize(data, vins-1, nil, Map.update!(tx, :vin, &(&1 ++ [Vin.deserialize(vin)])))
   end
-  defp deserialize(<<vout::binary-24, data::binary>>, 0, vouts, tx), do: deserialize(data, 0, vouts-1, Map.update!(tx, :vout, &(&1 ++ [Vout.deserialize(vout)])))
+  defp deserialize(<<vout::binary-24, data::binary>>, 0, vouts, tx) do
+    deserialize(data, 0, vouts-1, Map.update!(tx, :vout, &(&1 ++ [Vout.deserialize(vout)])))
+  end
 
   def bytes(%Transaction{vin: vin, vout: vout}) do
-    Enum.reduce(vin, 0, &(&2 + Vin.bytes(&1)))
-      + Enum.reduce(vout, 0, &(&2 + Vout.bytes(&1)))
-      + 3
+    Enum.reduce(vin, 0, &(&2 + Vin.bytes(&1))) + Enum.reduce(vout, 0, &(&2 + Vout.bytes(&1))) + 3
   end
 end

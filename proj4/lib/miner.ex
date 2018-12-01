@@ -15,19 +15,35 @@ defmodule Miner do
   #TODO A miner should hold active lists of block (as well as chains?) when it decides where to put its hashing power.
   #TODO fee priority
   
-  @spec coinbase(Mempool.t, ) :: Transaction.t
-  def coinbase() do
-
-  def hash_and_verify(header, nonce) do
-    header = Block.setNonceInHeader(header, nonce)
-    block_hash = Block.generate_block_hash(header)
-    try do
-      hash = Block.verifyBlock(nil, header, block_hash, [:diff])
-      {:ok, nonce, hash}
-    rescue
-      Block.DiffError -> {:failed, nonce}
-    end
+  import Crypto
+  import KeyAddress
+  
+  @spec coinbase(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Transaction.t
+  def coinbase(bc, mempool, pkh, msg \\ 0) do
+    value =
+      Map.values(mempool)
+      |> Enum.map(&Map.get(&1, :fee))
+      |> Enum.sum()
+      |> Kernel.+(Blockchain.subsidy(bc))
+    Transaction.coinbase(msg, [Transaction.Vout.new(value, pkh)])
   end
+  
+  @spec build_block(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Block.t
+  def build_block(bc, mempool, pkh, msg \\ 0) do
+    transactions = [coinbase(bc, mempool, pkh, msg)]
+      ++ Enum.map(Map.values(mempool), &Map.get(&1, :tx))
+    Block.new(transactions, bc.tip.hash, Blockchain.next_target(bc))
+  end
+
+  @spec mine_block(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Block.t
+  def mine_block(bc, mempool, pkh, msg \\ 0) do
+    block = build_block(bc, mempool, pkh, msg)
+    {:ok, nonce} = find_valid_hash(Block.Header.serialize(block.header), Blockchain.next_target(bc), 0)
+    Block.update_nonce(block, nonce)
+  end
+  
+  @spec find_valid_hash(binary, binary, non_neg_integer) :: {:ok, non_neg_integer} | :error
+  def find_valid_hash(header, target, nonce)
 
   @doc """
   Starts process of mining by trying to create a valid block hash.

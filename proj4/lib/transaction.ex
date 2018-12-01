@@ -1,5 +1,6 @@
 defmodule Transaction do
   import Crypto
+  import KeyAddress
   
   @tx_version  1
   @max_outputs 254
@@ -138,8 +139,16 @@ defmodule Transaction do
     
     @type t :: %Vout{
       value: non_neg_integer,
-      pkh:   Crypto.hash160
+      pkh:   KeyAddress.pkh
     }
+    
+    @spec new(non_neg_integer, KeyAddress.pkh) :: t
+    def new(value, pkh) do
+      %Vout{
+        value: value,
+        pkh:   pkh
+      }
+    end
     
     def serialize([vout | tail]), do: serialize(vout) <> serialize(tail)
     def serialize(%Vout{value: value, pkh: pkh}), do: <<value::32>> <> pkh
@@ -167,8 +176,8 @@ defmodule Transaction do
     }
   end
   
-  @spec coinbase(binary, [Vout.t, ...]) :: t
-  def coinbase(msg, vout), do: new([Vin.coinbase(msg)], vout)
+  @spec coinbase([Vout.t, ...], binary \\ <<0>>) :: t
+  def coinbase(vout, msg), do: new([Vin.coinbase(msg)], vout)
   
   @spec fee([Vout.t, ...], [Vout.t, ...]) :: non_neg_integer
   def fee(vin, vout), do: sum_value(vin) - sum_value(vout)

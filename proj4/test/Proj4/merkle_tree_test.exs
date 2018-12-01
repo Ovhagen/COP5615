@@ -6,10 +6,10 @@ defmodule Proj4.MerkleTreeTest do
   @tag :merkle
   setup do
     %{
-      tx_test: [generate_tx(),  #Transactions gathered by a miner.
-                  generate_tx(),
-                  generate_tx(),
-                  generate_tx()],
+      tx_test: [Transaction.test(5, 5),  #Transactions gathered by a miner.
+                Transaction.test(5, 5),
+                Transaction.test(5, 5),
+                Transaction.test(5, 5)],
 	 }
   end
 
@@ -53,24 +53,22 @@ defmodule Proj4.MerkleTreeTest do
 
   @doc """
   This test checks that a transaction that is not included in the merkle tree will fail a merkle proof
-  check.
+  generation attempt.
   """
   test "Failing to verifying a transaction not in the tree", %{tx_test: tx_test} do
     tree = MerkleTree.build_tree(tx_test)
-    new_tx = generate_tx()
+    new_tx = Transaction.test(5, 5)
     assert(MerkleTree.proof(tree, new_tx) == :error) #Create a proof for the new transaction
   end
 
   @doc """
-  This test checks that a transaction that is not included in the merkle tree will fail a merkle proof
-  check.
+  This test checks that a invalid proof will fail a merkle proof check.
   """
   test "Failing to verifying a proof", %{tx_test: tx_test} do
     tree = MerkleTree.build_tree(tx_test)
-    new_tx = generate_tx()
-    assert(MerkleTree.proof(tree, new_tx) == :error) #Create a proof for the new transaction
+    {:ok, proof} = MerkleTree.proof(tree, Enum.at(tx_test, 1)) #Create a proof for the second transaction
+    proof = [:crypto.strong_rand_bytes(32)] ++ tl(proof)
+    assert(MerkleTree.solve_proof(proof, tree.root.hash) == false) #Create a proof for the new transaction
   end
-
-
 
 end

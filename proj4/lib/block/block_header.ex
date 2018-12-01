@@ -1,5 +1,7 @@
 defmodule Block.Header do
   import Crypto
+  
+  @version 1
 
   defstruct version: @version, previous_hash: <<>>, merkle_root: <<>>, timestamp: 0, target: <<>>, nonce: 0
 

@@ -43,15 +43,20 @@ defmodule Block do
   """
   @spec verify(t) :: boolean
   def verify(block) do
-    verify_version(block)
-      and verify_timestamp(block)
-      and verify_merkle(block)
-      and verify_hash(block)
+    with :ok <- verify_version(block),
+         :ok <- verify_timestamp(block),
+         :ok <- verify_merkle(block),
+         :ok <- verify_hash(block)
+    do
+      :ok
+    else
+      error -> error
+    end
   end
-  defp verify_version(block), do: block.version == @version
-  defp verify_timestamp(block), do: DateTime.diff(DateTime.utc_now, block.timestamp) > 7200
-  defp verify_merkle(block), do: block.merkle_tree.root.hash == block.header.merkle_root
-  defp verify_hash(block), do: Block.Header.block_hash(block.header) < calc_target(block.header.target)
+  defp verify_version(block), do: (if block.header.version == @version, do: :ok, else: {:error, :version})
+  defp verify_timestamp(block), do: (if DateTime.diff(DateTime.utc_now, block.header.timestamp) > 7200, do: :ok, else: {:error, :timestamp})
+  defp verify_merkle(block), do: (if block.merkle_tree.root.hash == block.header.merkle_root, do: :ok, else: {:error, :merkle})
+  defp verify_hash(block), do: (if Block.Header.block_hash(block.header) < calc_target(block.header.target), do: :ok, else: {:error, :hash})
 
   @doc """
   Turns a Block data structure into raw bytes for transmitting and writing to disk.

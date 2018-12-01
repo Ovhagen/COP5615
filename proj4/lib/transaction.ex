@@ -250,4 +250,14 @@ defmodule Transaction do
   def bytes(%Transaction{vin: vin, vout: vout}) do
     Enum.reduce(vin, 0, &(&2 + Vin.bytes(&1))) + Enum.reduce(vout, 0, &(&2 + Vout.bytes(&1))) + 3
   end
+  
+  def test(ins, outs) when ins > 0 and outs > 0 do
+    {pubkeys, privkeys} = (for _n <- 1..ins, do: KeyAddress.keypair)
+      |> Enum.unzip
+    vin = (for n <- 1..ins, do: Vin.new(:crypto.strong_rand_bytes(32), :rand.uniform(255)-1))
+    vout = (for n <- 1..outs, do: :crypto.strong_rand_bytes(20))
+      |> Enum.map(&Transaction.Vout.new(:rand.uniform(10_000_000), &1))
+    Transaction.new(vin, vout)
+    |> Transaction.sign(pubkeys, privkeys)
+  end
 end

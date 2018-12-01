@@ -34,11 +34,16 @@ defmodule Proj4.TransactionTest do
   test "Verify a signed transaction", data do
     assert Transaction.verify(data.tx)
     assert Transaction.verify(Transaction.sign(data.tx, [data.pubkey1], [data.privkey2])) == false
+    
+    assert Transaction.verify(Transaction.test(2, 3))
   end
     
   test "Serialize and deserialize transaction", data do
     assert data.tx == Transaction.deserialize(Transaction.serialize(data.tx))
     assert data.coinbase == Transaction.deserialize(Transaction.serialize(data.coinbase))
+    
+    tx = Transaction.test(2, 3)
+    assert tx == Transaction.deserialize(Transaction.serialize(tx))
   end
   
   test "Byte size is calculated correctly", data do

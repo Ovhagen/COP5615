@@ -14,10 +14,10 @@ defmodule Miner do
   #TODO Implement further verification.
   #TODO A miner should hold active lists of block (as well as chains?) when it decides where to put its hashing power.
   #TODO fee priority
-  
+
   import Crypto
   import KeyAddress
-  
+
   @spec coinbase(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Transaction.t
   def coinbase(bc, mempool, pkh, msg \\ 0) do
     value =
@@ -27,7 +27,7 @@ defmodule Miner do
       |> Kernel.+(Blockchain.subsidy(bc))
     Transaction.coinbase(msg, [Transaction.Vout.new(value, pkh)])
   end
-  
+
   @spec build_block(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Block.t
   def build_block(bc, mempool, pkh, msg \\ 0) do
     transactions = [coinbase(bc, mempool, pkh, msg)]
@@ -41,27 +41,9 @@ defmodule Miner do
     {:ok, nonce} = find_valid_hash(Block.Header.serialize(block.header), Blockchain.next_target(bc), 0)
     Block.update_nonce(block, nonce)
   end
-  
+
   @spec find_valid_hash(binary, binary, non_neg_integer) :: {:ok, non_neg_integer} | :error
-  def find_valid_hash(header, target, nonce)
+  def find_valid_hash(header, target, nonce) do end
 
-  @doc """
-  Starts process of mining by trying to create a valid block hash.
-  Returns the
-  """
-  @spec mine_block(Block.t, non_neg_integer, non_neg_integer) :: {Boolean.t, Block.t, String.t}
-  def mine_block(block, nonce, rounds) do
-    results = nonce..nonce+rounds
-    |> Enum.to_list()
-    |> Task.async_stream(&(hash_and_verify(block.block_header, &1))) |> Enum.map(fn x -> x end) |> Enum.map(fn ({:ok, p})-> if elem(p, 0) == :ok do {elem(p,1), elem(p,2)} end end)
-  end
-
-  def generate_block(transactions, prev_hash, nonce) do
-    #Check that transactions have available balance
-    #Collect fees
-    #Include coinbase transaction
-    tree = MerkleTree.makeMerkle(transactions)
-    Block.createBlock(transactions, tree.root.hash_value, prev_hash, nonce)
-  end
 
 end

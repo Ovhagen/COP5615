@@ -1,6 +1,8 @@
 defmodule MerkleTree.Node do
   import Crypto
-
+  @moduledoc """
+  This module specifies a merkle tree node, which is an internal node in the merkle tree.
+  """
   defstruct [:hash, :left, :right]
 
   @type t :: %MerkleTree.Node{

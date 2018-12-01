@@ -1,8 +1,5 @@
 defmodule Proj4.TransactionTest do
   use ExUnit.Case
-  @moduledoc """
-  This module defines a test
-  """
   @tag :tx
   test "Serialize and deserialize signed transaction" do
     {pubkey1, privkey1} = KeyAddress.keypair

@@ -1,6 +1,4 @@
 defmodule Blockchain do
-  import Crypto
-
   @coin 1_000_000
 
   defmodule UTXO do
@@ -19,6 +17,8 @@ defmodule Blockchain do
   end
 
   defmodule Mempool do
+    import Crypto
+    
     defstruct tx: %Transaction{}, fee: 0
     @type t :: %{required(Crypto.hash256) => %Mempool{}}
 
@@ -39,11 +39,12 @@ defmodule Blockchain do
     do
       if fee > 0, do: {:ok, fee}, else: {:error, :fee}
     else
-      false           -> {:error, :sig}
-      {:error, error} -> {:error, error}
+      false -> {:error, :sig}
+      error -> error
     end
   end
 
+  def get_utxo(_utxo, vin) when length(vin) == 0, do: {:error, :vin}
   def get_utxo(utxo, vin) do
     Enum.reduce_while(vin, {:ok, []}, fn vin, {:ok, acc} ->
       case Map.fetch(utxo, vin.txid <> <<vin.vout::8>>) do
@@ -55,7 +56,7 @@ defmodule Blockchain do
 
   def verify_pkh(vout, vin) do
     Enum.zip(vout, vin)
-    |> Enum.reduce_while(:ok, fn {vo, vi}, valid ->
+    |> Enum.reduce_while(:ok, fn {vo, vi}, _ ->
          if vo.pkh == KeyAddress.pubkey_to_pkh(vi.witness.pubkey) do
            {:cont, :ok}
          else
@@ -78,16 +79,11 @@ defmodule Blockchain do
   end
 
   def verify_block(bc, block) do
-    # 1. Block is internally valid (merkle root and hash value)
-    # 2. Block points to tip of current blockchain
-    # 3. Difficulty target is correct
-    # 4. All transactions are in the mempool
-    # 5. Coinbase transaction is correct (structure, fees and reward correct)
-    with :ok <- Block.verify(block),
-         :ok <- verify_tip(bc, block),
-         :ok <- verify_target(bc, block),
-         :ok <- verify_mempool(bc, block),
-         :ok <- verify_coinbase(bc, block)
+    with :ok         <- Block.verify(block),
+         :ok         <- verify_tip(bc, block),
+         :ok         <- verify_target(bc, block),
+         {:ok, fees} <- verify_mempool(bc, block),
+         :ok         <- verify_coinbase(bc, block, fees)
     do
       :ok
     else
@@ -104,16 +100,29 @@ defmodule Blockchain do
   end
 
   def verify_mempool(bc, block) do
-    Enum.reduce_while(block.transactions, :ok, fn tx, :ok ->
-      if Transaction.hash(tx) in bc.mempool, do: {:cont, :ok}, else: {:halt, {:error, :mempool}} end)
+    Enum.reduce_while(block.transactions, {:ok, 0}, fn tx, {:ok, fees} ->
+      if Transaction.hash(tx) in bc.mempool do
+        fee = Map.get(bc.mempool, Transaction.hash(tx))
+          |> Map.get(:fee)
+        {:cont, {:ok, fees + fee}}
+      else
+        {:halt, {:error, :mempool}}
+      end
+    end)
   end
 
-  def verify_coinbase(bc, block) do
-    # need to figure out coinbase transactions
+  def verify_coinbase(bc, block, fees) do
+    with coinbase      <- hd(block.transactions),
+         {:ok, value}  <- Transaction.verify_coinbase(coinbase)
+    do
+      if value == fees + Blockchain.subsidy(bc), do: :ok, else: {:error, :value}
+    else
+      error -> error
+    end
   end
-
-  @spec block_subsidy(t) :: non_neg_integer
-  def block_subsidy(bc) do
+  
+  @spec subsidy(t) :: non_neg_integer
+  def subsidy(_bc) do
     50 * @coin # constant block reward for now
   end
 

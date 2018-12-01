@@ -39,7 +39,7 @@ defmodule Transaction do
     """
     @spec serialize(t | binary) :: binary
     def serialize(%Witness{pubkey: pubkey, sig: sig}), do: pubkey <> sig
-    def serialize(coinbase) when is_binary(coinbase), do: coinbase
+    def serialize(coinbase) when is_binary(coinbase), do: coinbase <> <<0x00>>
 
     @doc """
     Reproduces the witness data structure from raw bytes.
@@ -84,12 +84,24 @@ defmodule Transaction do
     Creates a new coinbase transaction input.
     """
     @spec coinbase(binary) :: t
-    def coinbase(msg \\ <<0::272>>) do
+    def coinbase(msg \\ 0) do
       %Vin{
         txid:    <<0::256>>,
         vout:    @coinbase,
         witness: <<msg::272>>
       }
+    end
+    
+    @spec verify_coinbase(t) :: :ok | {:error, atom}
+    def verify_coinbase(vin) do
+      with <<0::256>> <- vin.txid,
+           @coinbase  <- vin.vout,
+           <<_::272>> <- vin.witness
+      do
+        :ok
+      else
+        _ -> {:error, :vin}
+      end
     end
 
     @doc """
@@ -177,7 +189,21 @@ defmodule Transaction do
   end
 
   @spec coinbase([Vout.t, ...], binary) :: t
-  def coinbase(vout, msg \\ <<0>>), do: new([Vin.coinbase(msg)], vout)
+  def coinbase(vout, msg \\ 0), do: new([Vin.coinbase(msg)], vout)
+  
+  def verify_coinbase(tx) do
+    with :ok <- verify_coinbase_io(tx),
+         :ok <- Vin.verify_coinbase(hd(tx.vin))
+    do
+      {:ok, Enum.sum(Enum.map(tx.vout, &Map.get(&1, :value)))}
+    else
+      error -> error
+    end
+  end
+  
+  defp verify_coinbase_io(tx) do
+    if length(tx.vin) != 1 or length(tx.vout) == 0, do: {:error, :io_count}, else: :ok
+  end
 
   @spec fee([Vout.t, ...], [Vout.t, ...]) :: non_neg_integer
   def fee(vin, vout), do: sum_value(vin) - sum_value(vout)

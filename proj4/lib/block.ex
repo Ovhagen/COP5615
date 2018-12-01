@@ -33,6 +33,8 @@ defmodule Block do
       merkle_tree:  merkle_tree
     }
   end
+  
+  @spec coinbase(t, non_neg_integer, binary, Crypto.hash160) :: t
 
   @doc """
   Verifies that a block is internally consistent by checking the version number, timestamp, merkle root, and header hash.

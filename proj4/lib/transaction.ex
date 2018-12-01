@@ -2,7 +2,6 @@ defmodule Transaction do
   import Crypto
   
   @tx_version  1
-  @coinbase    0xff
   @max_outputs 254
   
   defmodule Witness do
@@ -58,6 +57,8 @@ defmodule Transaction do
   end
   
   defmodule Vin do
+    @coinbase 0xff
+    
     defstruct txid: <<>>, vout: 0, witness: %Witness{}
     
     @type t :: %Vin{
@@ -75,6 +76,18 @@ defmodule Transaction do
         txid:    txid,
         vout:    vout,
         witness: %Witness{}
+      }
+    end
+    
+    @doc """
+    Creates a new coinbase transaction input.
+    """
+    @spec coinbase(binary) :: t
+    def coinbase(msg \\ <<0::272>>) do
+      %Vin{
+        txid:    <<0::256>>,
+        vout:    @coinbase,
+        witness: <<msg::272>>
       }
     end
     
@@ -141,9 +154,25 @@ defmodule Transaction do
   
   @type t :: %Transaction{
     version: non_neg_integer,
-    vin:     [Vin.t, ...] | Coinbase.t,
+    vin:     [Vin.t, ...],
     vout:    [Vout.t, ...]
   }
+  
+  @spec new([Vin.t, ...], [Vout.t, ...]) :: t
+  def new(vin, vout) do
+    %Transaction{
+      version: @tx_version,
+      vin: vin,
+      vout: vout
+    }
+  end
+  
+  @spec coinbase(binary, [Vout.t, ...]) :: t
+  def coinbase(msg, vout), do: new([Vin.coinbase(msg)], vout)
+  
+  @spec fee([Vout.t, ...], [Vout.t, ...]) :: non_neg_integer
+  def fee(vin, vout), do: sum_value(vin) - sum_value(vout)
+  defp sum_value(vout), do: Enum.reduce(vout, 0, &(&2 + &1.value))
   
   def sign(tx, pubkeys, privkeys) do
     sighash = sighash(tx)

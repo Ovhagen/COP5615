@@ -14,6 +14,9 @@ defmodule Miner do
   #TODO Implement further verification.
   #TODO A miner should hold active lists of block (as well as chains?) when it decides where to put its hashing power.
   #TODO fee priority
+  
+  @spec coinbase(Mempool.t, ) :: Transaction.t
+  def coinbase() do
 
   def hash_and_verify(header, nonce) do
     header = Block.setNonceInHeader(header, nonce)

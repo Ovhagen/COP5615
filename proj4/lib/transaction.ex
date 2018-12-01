@@ -176,8 +176,8 @@ defmodule Transaction do
     }
   end
   
-  @spec coinbase([Vout.t, ...], binary \\ <<0>>) :: t
-  def coinbase(vout, msg), do: new([Vin.coinbase(msg)], vout)
+  @spec coinbase([Vout.t, ...], binary) :: t
+  def coinbase(vout, msg \\ <<0>>), do: new([Vin.coinbase(msg)], vout)
   
   @spec fee([Vout.t, ...], [Vout.t, ...]) :: non_neg_integer
   def fee(vin, vout), do: sum_value(vin) - sum_value(vout)

@@ -33,6 +33,9 @@ defmodule Block do
       merkle_tree:  merkle_tree
     }
   end
+  
+  @spec update_nonce(t, non_neg_integer) :: t
+  def update_nonce(block, nonce), do: put_in(block, [:header, :nonce], nonce)
 
   @doc """
   Verifies that a block is internally consistent by checking the version number, timestamp, merkle root, and header hash.

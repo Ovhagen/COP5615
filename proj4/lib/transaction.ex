@@ -39,7 +39,7 @@ defmodule Transaction do
     """
     @spec serialize(t | binary) :: binary
     def serialize(%Witness{pubkey: pubkey, sig: sig}), do: pubkey <> sig
-    def serialize(coinbase) when is_binary(coinbase), do: coinbase
+    def serialize(coinbase) when is_binary(coinbase), do: coinbase <> <<0x00>>
 
     @doc """
     Reproduces the witness data structure from raw bytes.
@@ -84,19 +84,31 @@ defmodule Transaction do
     Creates a new coinbase transaction input.
     """
     @spec coinbase(binary) :: t
-    def coinbase(msg \\ <<0::272>>) do
+    def coinbase(msg \\ 0) do
       %Vin{
         txid:    <<0::256>>,
         vout:    @coinbase,
         witness: <<msg::272>>
       }
     end
+    
+    @spec verify_coinbase(t) :: :ok | {:error, atom}
+    def verify_coinbase(vin) do
+      with <<0::256>> <- vin.txid,
+           @coinbase  <- vin.vout,
+           <<_::272>> <- vin.witness
+      do
+        :ok
+      else
+        _ -> {:error, :vin}
+      end
+    end
 
     @doc """
     Verifies the witness contained in this input. See Witness.verify/2 for more details.
     """
     @spec verify(t | [t], Crypto.hash256) :: boolean
-    def verify([%Vin{witness: witness} | tail], msg), do: Vin.verify(witness, msg) && verify(tail, msg)
+    def verify([vin | tail], msg), do: Vin.verify(vin, msg) && verify(tail, msg)
     def verify(%Vin{witness: witness}, msg), do: Witness.verify(witness, msg)
     def verify([], _msg), do: true
 
@@ -177,7 +189,21 @@ defmodule Transaction do
   end
 
   @spec coinbase([Vout.t, ...], binary) :: t
-  def coinbase(vout, msg \\ <<0>>), do: new([Vin.coinbase(msg)], vout)
+  def coinbase(vout, msg \\ 0), do: new([Vin.coinbase(msg)], vout)
+  
+  def verify_coinbase(tx) do
+    with :ok <- verify_coinbase_io(tx),
+         :ok <- Vin.verify_coinbase(hd(tx.vin))
+    do
+      {:ok, Enum.sum(Enum.map(tx.vout, &Map.get(&1, :value)))}
+    else
+      error -> error
+    end
+  end
+  
+  defp verify_coinbase_io(tx) do
+    if length(tx.vin) != 1 or length(tx.vout) == 0, do: {:error, :io_count}, else: :ok
+  end
 
   @spec fee([Vout.t, ...], [Vout.t, ...]) :: non_neg_integer
   def fee(vin, vout), do: sum_value(vin) - sum_value(vout)
@@ -217,11 +243,21 @@ defmodule Transaction do
     <<vin::binary-size(bytes), data::binary>> = data
     deserialize(data, vins-1, nil, Map.update!(tx, :vin, &(&1 ++ [Vin.deserialize(vin)])))
   end
-  defp deserialize(<<vout::binary-24, data::binary>>, 0, vouts, tx), do: deserialize(data, 0, vouts-1, Map.update!(tx, :vout, &(&1 ++ [Vout.deserialize(vout)])))
+  defp deserialize(<<vout::binary-24, data::binary>>, 0, vouts, tx) do
+    deserialize(data, 0, vouts-1, Map.update!(tx, :vout, &(&1 ++ [Vout.deserialize(vout)])))
+  end
 
   def bytes(%Transaction{vin: vin, vout: vout}) do
-    Enum.reduce(vin, 0, &(&2 + Vin.bytes(&1)))
-      + Enum.reduce(vout, 0, &(&2 + Vout.bytes(&1)))
-      + 3
+    Enum.reduce(vin, 0, &(&2 + Vin.bytes(&1))) + Enum.reduce(vout, 0, &(&2 + Vout.bytes(&1))) + 3
+  end
+  
+  def test(ins, outs) when ins > 0 and outs > 0 do
+    {pubkeys, privkeys} = (for _n <- 1..ins, do: KeyAddress.keypair)
+      |> Enum.unzip
+    vin = (for n <- 1..ins, do: Vin.new(:crypto.strong_rand_bytes(32), :rand.uniform(255)-1))
+    vout = (for n <- 1..outs, do: :crypto.strong_rand_bytes(20))
+      |> Enum.map(&Transaction.Vout.new(:rand.uniform(10_000_000), &1))
+    Transaction.new(vin, vout)
+    |> Transaction.sign(pubkeys, privkeys)
   end
 end

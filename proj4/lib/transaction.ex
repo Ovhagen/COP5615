@@ -84,11 +84,11 @@ defmodule Transaction do
     Creates a new coinbase transaction input.
     """
     @spec coinbase(binary) :: t
-    def coinbase(msg \\ 0) do
+    def coinbase(msg) do
       %Vin{
         txid:    <<0::256>>,
         vout:    @coinbase,
-        witness: <<msg::272>>
+        witness: msg
       }
     end
     
@@ -189,7 +189,12 @@ defmodule Transaction do
   end
 
   @spec coinbase([Vout.t, ...], binary) :: t
-  def coinbase(vout, msg \\ 0), do: new([Vin.coinbase(msg)], vout)
+  def coinbase(vout, msg \\ <<0::272>>), do: new([Vin.coinbase(pad_msg(msg))], vout)
+  defp pad_msg(<<msg::binary-34, _::binary>>), do: msg
+  defp pad_msg(msg) do
+    pad_bytes = 8* (34 - byte_size(msg))
+    msg <> <<0::size(pad_bytes)>>
+  end
   
   def verify_coinbase(tx) do
     with :ok <- verify_coinbase_io(tx),
@@ -254,8 +259,8 @@ defmodule Transaction do
   def test(ins, outs) when ins > 0 and outs > 0 do
     {pubkeys, privkeys} = (for _n <- 1..ins, do: KeyAddress.keypair)
       |> Enum.unzip
-    vin = (for n <- 1..ins, do: Vin.new(:crypto.strong_rand_bytes(32), :rand.uniform(255)-1))
-    vout = (for n <- 1..outs, do: :crypto.strong_rand_bytes(20))
+    vin = (for _n <- 1..ins, do: Vin.new(:crypto.strong_rand_bytes(32), :rand.uniform(255)-1))
+    vout = (for _n <- 1..outs, do: :crypto.strong_rand_bytes(20))
       |> Enum.map(&Transaction.Vout.new(:rand.uniform(10_000_000), &1))
     Transaction.new(vin, vout)
     |> Transaction.sign(pubkeys, privkeys)

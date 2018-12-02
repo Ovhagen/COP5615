@@ -99,6 +99,7 @@ defmodule Block do
   @spec calc_target(<<_::32>>) :: non_neg_integer
   def calc_target(<<e::8, c::24>>), do: c <<< (8 * (e - 3))
   
+  @spec bytes(t) :: non_neg_integer
   def bytes(block) do
     4 * (length(block.transactions) + 1) + Block.Header.bytes + Enum.reduce(block.transactions, 0, &(&2 + Transaction.bytes(&1)))
   end

@@ -28,7 +28,11 @@ defmodule Blockchain do
 
   defstruct tip: %Blockchain.Link{}, utxo: %{}, mempool: %{}
 
-  @type t :: %Blockchain{}
+  @type t :: %Blockchain{
+    tip:     Blockchain.Link.t,
+    utxo:    UTXO.t,
+    mempool: Mempool.t
+  }
 
   @spec verify_tx(t, Transaction.t) :: {:ok, non_neg_integer} | {:error, atom}
   def verify_tx(bc, tx) do
@@ -78,6 +82,7 @@ defmodule Blockchain do
     end
   end
 
+  @spec verify_block(t, Block.t) :: :ok | {:error, atom}
   def verify_block(bc, block) do
     with :ok         <- Block.verify(block),
          :ok         <- verify_tip(bc, block),
@@ -90,16 +95,13 @@ defmodule Blockchain do
       error -> error
     end
   end
-
-  def verify_tip(bc, block) do
+  defp verify_tip(bc, block) do
     if block.header.prev == bc.tip.hash, do: :ok, else: {:error, :tip}
   end
-
-  def verify_target(bc, block) do
+  defp verify_target(bc, block) do
     if block.header.target == next_target(bc), do: :ok, else: {:error, :target}
   end
-
-  def verify_mempool(bc, block) do
+  defp verify_mempool(bc, block) do
     Enum.reduce_while(block.transactions, {:ok, 0}, fn tx, {:ok, fees} ->
       if Transaction.hash(tx) in bc.mempool do
         fee = Map.get(bc.mempool, Transaction.hash(tx))
@@ -110,8 +112,7 @@ defmodule Blockchain do
       end
     end)
   end
-
-  def verify_coinbase(bc, block, fees) do
+  defp verify_coinbase(bc, block, fees) do
     with coinbase      <- hd(block.transactions),
          {:ok, value}  <- Transaction.verify_coinbase(coinbase)
     do
@@ -131,7 +132,19 @@ defmodule Blockchain do
     bc.tip.block.header.target # Just keep previous difficulty
   end
 
+  @spec genesis() :: t
   def genesis() do
-    # Returns a new blockchain starting from the hard-coded genesis block
+    {pubkey, _privkey} = KeyAddress.keypair(1337)
+    msg = "01/Dec/2018 P Ovhagen and J Howes"
+    coinbase = Transaction.coinbase([Transaction.Vout.new(1_000_000_000, KeyAddress.pubkey_to_pkh(pubkey))], msg)
+    block = Block.new([coinbase], <<0::256>>, <<0x20001000::32>>)
+    %Blockchain{
+      tip: %Blockchain.Link{
+        block:  block,
+        hash:   Block.Header.block_hash(block.header),
+        prev:   nil,
+        height: 0
+      }
+    }
   end
 end

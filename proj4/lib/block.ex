@@ -25,17 +25,17 @@ defmodule Block do
   @spec new([Transaction.t, ...], Crypto.hash256, <<_::32>>, non_neg_integer) :: binary
   def new(transactions, previous_hash, target, nonce \\ 0) do
     merkle_tree = MerkleTree.build_tree(transactions)
-    %Block{
-      bytes:        4 * (length(transactions) + 1) + Block.Header.bytes + Enum.reduce(transactions, 0, &(&2 + Transaction.bytes(&1))),
+    block = %Block{
       header:       Block.Header.new(previous_hash, merkle_tree.root.hash, target, nonce),
       tx_counter:   length(transactions),
       transactions: transactions,
       merkle_tree:  merkle_tree
     }
+    Map.put(block, :bytes, Block.bytes(block))
   end
   
   @spec update_nonce(t, non_neg_integer) :: t
-  def update_nonce(block, nonce), do: put_in(block, [:header, :nonce], nonce)
+  def update_nonce(block, nonce), do: Map.update!(block, :header, &Map.put(&1, :nonce, nonce))
 
   @doc """
   Verifies that a block is internally consistent by checking the version number, timestamp, merkle root, and header hash.
@@ -54,9 +54,9 @@ defmodule Block do
     end
   end
   defp verify_version(block), do: (if block.header.version == @version, do: :ok, else: {:error, :version})
-  defp verify_timestamp(block), do: (if DateTime.diff(DateTime.utc_now, block.header.timestamp) > 7200, do: :ok, else: {:error, :timestamp})
+  defp verify_timestamp(block), do: (if DateTime.diff(block.header.timestamp, DateTime.utc_now) < 7200, do: :ok, else: {:error, :timestamp})
   defp verify_merkle(block), do: (if block.merkle_tree.root.hash == block.header.merkle_root, do: :ok, else: {:error, :merkle})
-  defp verify_hash(block), do: (if Block.Header.block_hash(block.header) < calc_target(block.header.target), do: :ok, else: {:error, :hash})
+  defp verify_hash(block), do: (if :binary.decode_unsigned(Block.Header.block_hash(block.header)) < calc_target(block.header.target), do: :ok, else: {:error, :hash})
 
   @doc """
   Turns a Block data structure into raw bytes for transmitting and writing to disk.
@@ -71,12 +71,35 @@ defmodule Block do
          end)
   end
 
-  # To be implemented
-  def deserialize(data)
+  @spec deserialize(binary) :: t
+  def deserialize(<<header::binary-80, tx_counter::32, tx_data::binary>> = data) do
+    deserialize(
+      tx_data,
+      tx_counter,
+      %Block{
+        bytes:      byte_size(data),
+        header:     Block.Header.deserialize(header),
+        tx_counter: tx_counter
+      }
+    )
+  end
+  defp deserialize(<<>>, 0, block) do
+    merkle_tree = MerkleTree.build_tree(block.transactions)
+    Map.put(block, :merkle_tree, merkle_tree)
+    |> Map.update!(:header, &Map.put(&1, :merkle_root, merkle_tree.root.hash))
+  end
+  defp deserialize(<<bytes::32, tx_data::binary>>, tx_counter, block) do
+    <<tx::binary-size(bytes), data::binary>> = tx_data
+    deserialize(data, tx_counter-1, Map.update!(block, :transactions, &(&1 ++ [Transaction.deserialize(tx)])))
+  end
 
   @doc """
   Calculates the difficulty target from the 4-byte representation in the block header. A valid block must have a block hash that is less than this value.
   """
   @spec calc_target(<<_::32>>) :: non_neg_integer
   def calc_target(<<e::8, c::24>>), do: c <<< (8 * (e - 3))
+  
+  def bytes(block) do
+    4 * (length(block.transactions) + 1) + Block.Header.bytes + Enum.reduce(block.transactions, 0, &(&2 + Transaction.bytes(&1)))
+  end
 end

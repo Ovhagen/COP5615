@@ -19,7 +19,7 @@ defmodule Block.Header do
       version: @version,
       previous_hash: previous_hash,
       merkle_root: merkle_root,
-      timestamp: DateTime.utc_now,
+      timestamp: DateTime.utc_now |> DateTime.truncate(:second),
       target: target,
       nonce: nonce
     }
@@ -40,7 +40,7 @@ defmodule Block.Header do
       version:       v,
       previous_hash: p,
       merkle_root:   m,
-      timestamp:     DateTime.from_unix(t),
+      timestamp:     DateTime.from_unix!(t),
       target:        g,
       nonce:         n
     }

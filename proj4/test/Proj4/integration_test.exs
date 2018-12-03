@@ -3,13 +3,84 @@ defmodule Proj4.IntegrationTest do
   @moduledoc """
   This module defines an integration test incorporating all of the modules defined in this project.
   """
-  setup do
-    {genesis_pubkey, genesis_privkey} = KeyAddress.keypair(1337)
-    {miner_pubkey, miner_privkey} = KeyAddress.keypair
-    {pubkeys, privkeys} = (for _n <- 1..10, do: KeyAddress.keypair)
-      |> Enum.unzip
+
+  @doc """
+  This helper function conducts a testing round using the given blockchain.
+  """
+  @spec testing_round(Blockchain.t, map, float, float) :: {:ok, Blockchain.t}
+  def testing_round(bc, keys, utxo_ratio, tx_ratio) do
+    inputs = Map.to_list(bc.utxo)
+      |> Enum.take_random(Map.keys(bc.utxo) |> length |> Kernel.*(utxo_ratio) |> trunc)
+      |> Enum.sort_by(&(elem(&1, 1) |> Map.get(:pkh)))
+      |> Enum.chunk_while([], fn vout, acc ->
+             cond do
+               acc == [] ->
+                 {:cont, [vout]}
+               Map.get(elem(vout, 1), :pkh) == Map.get(elem(hd(acc), 1), :pkh) ->
+                 {:cont, acc ++ [vout]}
+               true ->
+                 {:cont, acc, [vout]}
+             end
+           end,
+           fn acc -> {:cont, acc, nil} end)
+    txs = Enum.map(inputs, fn input ->
+        from = hd(input) |> elem(1) |> Map.get(:pkh)
+        to = Map.delete(keys, from) |> Map.keys |> Enum.random
+        value = Enum.map(input, &Map.get(elem(&1, 1), :value)) |> Enum.sum |> Kernel.-(500)
+        spent = max(:rand.uniform(value), 10_000)
+        spent = (if spent-value < 10_000, do: value, else: spent)
+        vin = Enum.map(input, fn x ->
+            <<txid::binary-32, vout::8>> = elem(x, 0)
+            Transaction.Vin.new(txid, vout)
+          end)
+        vout = [Transaction.Vout.new(spent, to)]
+        vout = (if spent-value > 0, do: vout ++ [Transaction.Vout.new(spent-value, from)], else: vout)
+        tx = Transaction.new(vin, vout)
+        %{pubkey: pubkey, privkey: privkey} = Map.get(keys, from)
+        Transaction.sign(tx, List.duplicate(pubkey, length(vin)), List.duplicate(privkey, length(vin)))
+      end)
+    bc = Enum.reduce(txs, bc, &(Blockchain.add_to_mempool(&2, &1) |> elem(1)))
+    tx_count = Map.keys(bc.mempool) |> length |> Kernel.*(tx_ratio) |> trunc
+    mempool = Map.to_list(bc.mempool) |> Enum.take_random(tx_count) |> Map.new
+    block = Miner.mine_block(bc, mempool, Enum.random(Map.keys(keys)), "test block")
+    Blockchain.add_block(bc, block)
+  end
+  
+  @doc """
+  This test simulates the construction of a blockchain by generating addresses, constructing random transactions
+  between the addresses, and mining blocks containing these transactions.
+  
+  The test begins by creating a new blockchain from the genesis block, and then mining a block with a single
+  transaction that distributes the genesis coins in random amounts to random addresses.
+  
+  Then, five new blocks are mined through the following process:
+    1. Generate random transactions using a portion of the UTXOs available
+    2. Add the transactions to the mempool
+    3. Mine a block using a portion of the mempool
+    4. Add the new block to the blockchain
+  
+  After the final round has completed successfully, the total coin supply is verified to make sure no coins were lost.
+  """
+  test "Transact bitcoins" do
+    # Generate "wallet" of 500 random keys, plus the genesis key
+    keys = (for _n <- 1..500, do: KeyAddress.keypair)
+      |> Enum.map(fn {pubkey, privkey} -> {KeyAddress.pubkey_to_pkh(pubkey), %{pubkey: pubkey, privkey: privkey}} end)
+      |> Map.new
+    
+    # Create genesis block
     bc = Blockchain.genesis
-    vout = (for n <- 0..9, do: Transaction.Vout.new(99_500_000, Enum.at(pubkeys, n) |> KeyAddress.pubkey_to_pkh))
+    
+    # Build initial transaction to distribute genesis coins
+    vout = Stream.unfold(1_000_000_000, fn coins ->
+        if coins > 40_000_000 do
+          value = :rand.uniform(30_000_000) + 10_000_000
+          {value, coins - value}
+        else
+          nil
+        end
+      end)
+      |> Enum.zip(Enum.shuffle(Map.keys(keys)))
+      |> Enum.map(fn {coins, pkh} -> Transaction.Vout.new(coins, pkh) end)
     tx = Transaction.new(
       [Transaction.Vin.new(
           bc.tip.block.transactions |> hd |> Transaction.hash,
@@ -17,86 +88,23 @@ defmodule Proj4.IntegrationTest do
         )],
       vout
     )
+    {genesis_pubkey, genesis_privkey} = KeyAddress.keypair(1337)
     tx = Transaction.sign(tx, [genesis_pubkey], [genesis_privkey])
-    %{
-      bc:              bc,
-      tx:              tx,
-      genesis_pubkey:  genesis_pubkey,
-      genesis_privkey: genesis_privkey,
-      miner_pubkey:    miner_pubkey,
-      miner_privkey:   miner_privkey,
-      pubkeys:         pubkeys,
-      privkeys:        privkeys
-    }
-  end
-  
-  @doc """
-  This test verifies that valid transactions can be added to the mempool. A valid transaction is a
-  properly signed transaction with inputs that correspond to unspent outputs (UTXOs) on the blockchain.
-  Once a transaction is added to the mempool, the UTXOs which were used in that transaction are then removed
-  from the available UTXOs.
-  This test also verifies that transactions which do not meet these requirements are rejected.
-  """
-  test "Add transaction to mempool", data do
-    # Mempool contains a UTXO, valid transaction is added which uses the UTXO, then the UTXO is removed
-    assert data.bc.utxo != %{}
-    {:ok, bc} = Blockchain.add_to_mempool(data.bc, data.tx)
-    assert bc.utxo == %{}
     
-    # The transaction must have a valid signature
-    {:error, :sig} = Blockchain.add_to_mempool(data.bc, Transaction.sign(data.tx, [data.genesis_pubkey], [data.miner_privkey]))
-    
-    # Each input must be signed by the private key corresponding to the public key hash from the UTXO
-    {:error, :pkh} = Blockchain.add_to_mempool(data.bc, Transaction.sign(data.tx, [data.miner_pubkey], [data.miner_privkey]))
-    
-    # All inputs must correspond to unspent outputs (UTXOs) from the blockchain
-    {:error, :utxo} = Blockchain.add_to_mempool(bc, data.tx)
-    
-    # The transaction fee (inputs - outputs) must be greater than 0
-    tx = Map.update!(data.tx, :vout, &(&1 ++ &1)) |> Transaction.sign([data.genesis_pubkey], [data.genesis_privkey])
-    {:error, :fee} = Blockchain.add_to_mempool(data.bc, tx)
-  end
-  
-  @doc """
-  This test verifies that newly mined blocks can be added to the blockchain, and that the mempool and
-  UTXO index are correctly updated based on transactions from the new block.
-  """
-  test "Add blocks to blockchain", data do
-    # Mine empty block and add it to the blockchain
-    root = data.bc.tip
-    block = Miner.mine_block(data.bc, data.bc.mempool, KeyAddress.pubkey_to_pkh(data.miner_pubkey), "test")
-    {:ok, bc} = Blockchain.add_block(data.bc, block)
-    assert bc.tip.block == block
-    assert bc.tip.height == 1
-    assert bc.tip.prev == root
-    assert length(Map.keys(bc.mempool)) == 0
-    assert length(Map.keys(bc.utxo)) == 2
-    
-    # Mine block containing a transaction and add it to the blockchain
-    {:ok, bc} = Blockchain.add_to_mempool(data.bc, data.tx)
-    block = Miner.mine_block(bc, bc.mempool, KeyAddress.pubkey_to_pkh(data.miner_pubkey), "test")
+    # Add initial transaction to mempool and mine a block
+    {:ok, bc} = Blockchain.add_to_mempool(bc, tx)
+    block = Miner.mine_block(bc, bc.mempool, Enum.random(Map.keys(keys)), "test block")
     {:ok, bc} = Blockchain.add_block(bc, block)
-    assert length(Map.keys(bc.mempool)) == 0
-    assert length(Map.keys(bc.utxo)) == 11
     
-    # Mine block which doesn't include the full mempool and add it to the blockchain
-    block = Miner.mine_block(data.bc, data.bc.mempool, KeyAddress.pubkey_to_pkh(data.miner_pubkey), "test")
-    {:ok, bc} = Blockchain.add_to_mempool(data.bc, data.tx)
-    {:ok, bc} = Blockchain.add_block(bc, block)
-    assert length(Map.keys(bc.mempool)) == 1
-    assert length(Map.keys(bc.utxo)) == 1
+    # Conduct five rounds of random transactions and mining
+    {:ok, bc} = testing_round(bc, keys, 0.8, 0.8)
+    {:ok, bc} = testing_round(bc, keys, 0.6, 0.6)
+    {:ok, bc} = testing_round(bc, keys, 0.5, 0.6)
+    {:ok, bc} = testing_round(bc, keys, 0.6, 0.8)
+    {:ok, bc} = testing_round(bc, keys, 0.8, 1.0)
     
-    # Sequentially mine and add multiple empty blocks
-    block = Miner.mine_block(data.bc, data.bc.mempool, KeyAddress.pubkey_to_pkh(data.miner_pubkey), "test")
-    {:ok, bc} = Blockchain.add_block(data.bc, block)
-    block = Miner.mine_block(bc, bc.mempool, KeyAddress.pubkey_to_pkh(data.miner_pubkey), "test2")
-    {:ok, bc} = Blockchain.add_block(bc, block)
-    block = Miner.mine_block(bc, bc.mempool, KeyAddress.pubkey_to_pkh(data.miner_pubkey), "test3")
-    {:ok, bc} = Blockchain.add_block(bc, block)
-    block = Miner.mine_block(bc, bc.mempool, KeyAddress.pubkey_to_pkh(data.miner_pubkey), "test4")
-    {:ok, bc} = Blockchain.add_block(bc, block)
-    assert bc.tip.height == 4
-    assert bc.tip.prev.prev.prev.prev == root
-    assert length(Map.keys(bc.utxo)) == 5
+    # Verify that the total coin supply is correct
+    coin_supply = Map.values(bc.utxo) |> Enum.map(&Map.get(&1, :value)) |> Enum.sum
+    assert coin_supply == 1_000_000_000 + 6 * Blockchain.subsidy(bc)
   end
 end

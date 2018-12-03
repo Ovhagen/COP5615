@@ -43,7 +43,7 @@ defmodule Proj4.MerkleTreeTest do
 
   @doc """
   This test certifies that a transaction can be successfully verified to have been included in a merkle tree. The
-  verification process is carried out by hasing up the merkle path and finally compare with the merkle root.
+  verification process is carried out by hashing up the merkle path and finally compare with the merkle root.
   """
   test "Successfully verifying a transaction", %{tx_test: tx_test} do
     tree = MerkleTree.build_tree(tx_test)
@@ -62,7 +62,7 @@ defmodule Proj4.MerkleTreeTest do
   end
 
   @doc """
-  This test checks that a invalid proof will fail a merkle proof check.
+  This test checks that an invalid proof will fail a merkle proof check.
   """
   test "Failing to verifying a proof", %{tx_test: tx_test} do
     tree = MerkleTree.build_tree(tx_test)

@@ -9,6 +9,8 @@ defmodule Proj4.IntegrationTest do
   """
   @spec testing_round(Blockchain.t, map, float, float) :: {:ok, Blockchain.t}
   def testing_round(bc, keys, utxo_ratio, tx_ratio) do
+    # Select UTXOs to use when creating new transactions
+    # UTXOs for the same address are grouped together
     inputs = Map.to_list(bc.utxo)
       |> Enum.take_random(Map.keys(bc.utxo) |> length |> Kernel.*(utxo_ratio) |> trunc)
       |> Enum.sort_by(&(elem(&1, 1) |> Map.get(:pkh)))
@@ -23,6 +25,9 @@ defmodule Proj4.IntegrationTest do
              end
            end,
            fn acc -> {:cont, acc, nil} end)
+
+    # Generate one random transaction for each unique UTXO
+    # Each transaction has one output, plus a change output if there are coins left over
     txs = Enum.map(inputs, fn input ->
         from = hd(input) |> elem(1) |> Map.get(:pkh)
         to = Map.delete(keys, from) |> Map.keys |> Enum.random
@@ -39,7 +44,11 @@ defmodule Proj4.IntegrationTest do
         %{pubkey: pubkey, privkey: privkey} = Map.get(keys, from)
         Transaction.sign(tx, List.duplicate(pubkey, length(vin)), List.duplicate(privkey, length(vin)))
       end)
+
+    # Add the new transactions to the mempool
     bc = Enum.reduce(txs, bc, &(Blockchain.add_to_mempool(&2, &1) |> elem(1)))
+
+    # Randomly select a portion of the mempool and mine a new block
     tx_count = Map.keys(bc.mempool) |> length |> Kernel.*(tx_ratio) |> trunc
     mempool = Map.to_list(bc.mempool) |> Enum.take_random(tx_count) |> Map.new
     block = Miner.mine_block(bc, mempool, Enum.random(Map.keys(keys)), "test block")

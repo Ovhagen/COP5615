@@ -28,10 +28,12 @@ defmodule Transaction do
     Verifies that the witness provided was produced using the same transaction hash with the private key corresponding to the public key.
     Returns true if the witness is valid, false otherwise.
     """
-    @spec verify(t, Crypto.hash256) :: boolean
+    @spec verify(t | binary, Crypto.hash256) :: boolean
+    def verify(%Witness{pubkey: <<>>, sig: sig}, msg), do: false
     def verify(%Witness{pubkey: pubkey, sig: sig}, msg) do
       :crypto.verify(:ecdsa, :sha256, msg, sig, [KeyAddress.uncompress_pubkey(pubkey), :secp256k1])
     end
+    def verify(_, _msg), do: false
 
     @doc """
     Turns the witness data into raw bytes for hashing, transmitting and writing to disk.

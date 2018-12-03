@@ -4,6 +4,11 @@ defmodule Blockchain do
   defmodule UTXO do
     @type id :: <<_::264>>
     @type t :: %{required(id) => Transaction.Vout.t}
+    
+    @spec from_tx(Transaction.t) :: t
+    def from_tx(tx), do: from_vout(tx.vout, 0, Transaction.hash(tx), %{})
+    defp from_vout([], _count, _txid, utxo), do: utxo
+    defp from_vout([vout | tail], count, txid, utxo), do: from_vout(tail, count+1, txid, Map.put(utxo, txid <> <<count::8>>, vout))
 
     @spec id(Transaction.t, non_neg_integer) :: id
     def id(tx, vout), do: Transaction.hash(tx) <> <<vout::8>>
@@ -48,7 +53,6 @@ defmodule Blockchain do
     end
   end
 
-  def get_utxo(_utxo, vin) when length(vin) == 0, do: {:error, :vin}
   def get_utxo(utxo, vin) do
     Enum.reduce_while(vin, {:ok, []}, fn vin, {:ok, acc} ->
       case Map.fetch(utxo, vin.txid <> <<vin.vout::8>>) do
@@ -96,14 +100,14 @@ defmodule Blockchain do
     end
   end
   defp verify_tip(bc, block) do
-    if block.header.prev == bc.tip.hash, do: :ok, else: {:error, :tip}
+    if block.header.previous_hash == bc.tip.hash, do: :ok, else: {:error, :tip}
   end
   defp verify_target(bc, block) do
     if block.header.target == next_target(bc), do: :ok, else: {:error, :target}
   end
   defp verify_mempool(bc, block) do
-    Enum.reduce_while(block.transactions, {:ok, 0}, fn tx, {:ok, fees} ->
-      if Transaction.hash(tx) in bc.mempool do
+    Enum.reduce_while(tl(block.transactions), {:ok, 0}, fn tx, {:ok, fees} ->
+      if Transaction.hash(tx) in Map.keys(bc.mempool) do
         fee = Map.get(bc.mempool, Transaction.hash(tx))
           |> Map.get(:fee)
         {:cont, {:ok, fees + fee}}
@@ -137,14 +141,15 @@ defmodule Blockchain do
     {pubkey, _privkey} = KeyAddress.keypair(1337)
     msg = "01/Dec/2018 P Ovhagen and J Howes"
     coinbase = Transaction.coinbase([Transaction.Vout.new(1_000_000_000, KeyAddress.pubkey_to_pkh(pubkey))], msg)
-    block = Block.new([coinbase], <<0::256>>, <<0x20001000::32>>)
+    block = Block.new([coinbase], <<0::256>>, <<0x20000100::32>>)
     %Blockchain{
       tip: %Blockchain.Link{
-        block:  block,
-        hash:   Block.Header.block_hash(block.header),
-        prev:   nil,
-        height: 0
-      }
+          block:  block,
+          hash:   Block.Header.block_hash(block.header),
+          prev:   nil,
+          height: 0
+        },
+      utxo: UTXO.from_tx(coinbase)
     }
   end
 end

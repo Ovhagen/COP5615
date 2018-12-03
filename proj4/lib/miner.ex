@@ -11,13 +11,13 @@ defmodule Miner do
   The full coinbase output is directed to the address provided.
   """
   @spec coinbase(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Transaction.t
-  def coinbase(bc, mempool, pkh, msg \\ 0) do
+  def coinbase(bc, mempool, pkh, msg \\ <<>>) do
     value =
       Map.values(mempool)
       |> Enum.map(&Map.get(&1, :fee))
       |> Enum.sum()
       |> Kernel.+(Blockchain.subsidy(bc))
-    Transaction.coinbase(msg, [Transaction.Vout.new(value, pkh)])
+    Transaction.coinbase([Transaction.Vout.new(value, pkh)], msg)
   end
 
   @doc """
@@ -25,7 +25,7 @@ defmodule Miner do
   The full coinbase output is directed to the address provided.
   """
   @spec build_block(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Block.t
-  def build_block(bc, mempool, pkh, msg \\ 0) do
+  def build_block(bc, mempool, pkh, msg \\ <<>>) do
     transactions = [coinbase(bc, mempool, pkh, msg)]
       ++ Enum.map(Map.values(mempool), &Map.get(&1, :tx))
     Block.new(transactions, bc.tip.hash, Blockchain.next_target(bc))
@@ -36,7 +36,7 @@ defmodule Miner do
   The full coinbase output is directed to the address provided.
   """
   @spec mine_block(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Block.t
-  def mine_block(bc, mempool, pkh, msg \\ 0) do
+  def mine_block(bc, mempool, pkh, msg \\ <<>>) do
     block = build_block(bc, mempool, pkh, msg)
     <<stub::binary-76, _::binary>> = Block.Header.serialize(block.header)
     {:ok, nonce} = find_valid_hash(stub, Block.calc_target(block.header.target), 0)
@@ -51,7 +51,8 @@ defmodule Miner do
   @spec find_valid_hash(binary, pos_integer, non_neg_integer) :: {:ok, non_neg_integer} | :error
   def find_valid_hash(_, _, nonce) when nonce > 0xffffffff, do: :error
   def find_valid_hash(stub, target, nonce) do
-    if sha256x2(stub <> <<nonce::32>>) < target do
+    hash = sha256x2(stub <> <<nonce::32>>) |> :binary.decode_unsigned
+    if hash < target do
       {:ok, nonce}
     else
       find_valid_hash(stub, target, nonce+1)

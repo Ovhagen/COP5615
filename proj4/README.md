@@ -1,5 +1,5 @@
 # Project 4.1
-A project in the course Distributed Operating System Principles COP5615. The task for this project was to implement the Bitcoin protocol with sufficient functionality to receive, send, and mine the digital currency that is Bitcoin. Futhermore, tests were implemented to test the correctness of each task. The final test presents a simple use case of sending bitcoin between two addresses with the precense of a miner to create blocks and add it to a public ledge -- namely the blockchain. 
+A project in the course Distributed Operating System Principles COP5615. The task for this project was to implement the Bitcoin protocol with sufficient functionality to receive, send, and mine the digital currency that is Bitcoin. Furthermore, tests were implemented to test the correctness of each task. The final test presents a simple use case of sending bitcoin between two addresses with the precense of a miner to create blocks and add it to a public ledge -- namely the blockchain. 
 
 ### Author
 James Howes (UFID 9262-9312)

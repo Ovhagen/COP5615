@@ -43,21 +43,32 @@ Refer to the file `test/Proj4/block_test.exs` for further specification on tests
 
 ## Funtionality Specification (What works?)
 The bulletpoints below outline what parts are working and have been incorporated into this first project.
-__Miner__
-* Miners can successfully mine blocks.
-* A miner can store a local copy of a blockchain to update as they verify blocks.
-* 
 
-__Blocks/Blockchain__
-* A block can be created with a block header
-* Blocks can be verified based on metrics for correctness of the block hash, timestamp, the root hash, and on meeting the difficulty target.
-* A set of transactions can be used to create a merkle tree strucutre, which yields a root hash.
-* A merkle proof can be created as the merkle path for a specific transaction. After creation, this proof can be verified against the root hash of a block.
-* Blockchains can be verified...
+__Keys and Addresses__
+* Public/private key pairs can be generated with a specific seed, or using a random seed.
+* Public keys can be converted into a bitcoin address, which is a hash of the public key encoded into Base58Check.
+* Public keys are "compressed" in all transactions. This reduces the byte size of the key by half.
 
-__Wallet/transactions__
-* A transaction can be created with inputs and outputs.
-* Transactions can be signed and verified.
-* Keyaddresses...
+__Transactions__
+* To greatly simplify our implementation, we only allow pay-to-public-key-hash (P2PKH) transactions. The overwhelming majority of bitcoin transactions are of this type.
+* This allowed us to remove the scripting language used in the real bitcoin. Transaction outputs simply store the public key hash where the coins are being sent, instead of an output locking script.
+* Transactions can be created with up to 255 inputs and up to 255 outputs, and the total input value must exceed the total output value (i.e. positive transaction fee).
+* Transactions can be cryptographically signed, and the signatures can be verified.
+* Coinbase transactions, which are used to claim the mined block reward, can include an arbitrary message of up to 34 bytes.
+* Transactions can be serialized into raw bytes, and then deserialized back into the transaction data for transmission across a network.
 
+__Blocks__
+* Blocks can be created from an arbitrary number of transactions.
+* Blocks include a header which contains the version number, a timestamp, the hash of the previous block, the root hash of the transaction merkle tree, a mining difficulty target, and a nonce.
+* A merkle tree is built from the transaction data which allows anyone to prove a transaction was contained within the block.
 
+__Blockchain__
+* Blockchains can be built starting from a hard-coded genesis block. The genesis block starts with 1 billion coins sent to a single address.
+* Each blockchain data structure maintains a linked list of blocks in the chain, plus a pool of valid unconfirmed transactions (mempool) and an index of all unspent outputs (UTXOs).
+* New transactions can verified and added to the mempool if they meet all requirements.
+* New blocks can be verified and added to the chain if they meet all requirements. When a new block is added, the mempool and UTXO index are updated with the changes from the new block.
+
+__Mining__
+* Blocks can be mined using the same proof-of-work requirements as the real bitcoin.
+* The mining difficulty is currently fixed and does not change with network hashing power. A block can be mined in a fraction of a second on a typical CPU.
+* The block reward (coinbase output) can be sent to a single address specified by the miner. Block rewards are also fixed.

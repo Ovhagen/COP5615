@@ -1,7 +1,7 @@
-defmodule Proj4.BlockchainTest do
+defmodule Proj4.IntegrationTest do
   use ExUnit.Case
   @moduledoc """
-  This module defines unit tests for the Blockchain module.
+  This module defines an integration test incorporating all of the modules defined in this project.
   """
   setup do
     {genesis_pubkey, genesis_privkey} = KeyAddress.keypair(1337)

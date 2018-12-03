@@ -5,7 +5,8 @@ defmodule Blockchain do
     @type id :: <<_::264>>
     @type t :: %{required(id) => Transaction.Vout.t}
     
-    @spec from_tx(Transaction.t) :: t
+    @spec from_tx(Transaction.t | [Transaction.t, ...]) :: t
+    def from_tx(txs) when is_list(txs), do: Enum.reduce(txs, %{}, &Map.merge(&2, from_tx(&1)))
     def from_tx(tx), do: from_vout(tx.vout, 0, Transaction.hash(tx), %{})
     defp from_vout([], _count, _txid, utxo), do: utxo
     defp from_vout([vout | tail], count, txid, utxo), do: from_vout(tail, count+1, txid, Map.put(utxo, txid <> <<count::8>>, vout))
@@ -29,6 +30,10 @@ defmodule Blockchain do
 
     @spec insert(t, Transaction.t, non_neg_integer) :: t
     def insert(mempool, tx, fee), do: Map.put(mempool, Transaction.hash(tx), %Mempool{tx: tx, fee: fee})
+    
+    @spec delete(t, Transaction.t | [Transaction.t, ...]) :: t
+    def delete(mempool, txs) when is_list(txs), do: Enum.reduce(txs, mempool, &delete(&2, &1))
+    def delete(mempool, tx), do: Map.delete(mempool, Transaction.hash(tx))
   end
 
   defstruct tip: %Blockchain.Link{}, utxo: %{}, mempool: %{}
@@ -86,6 +91,23 @@ defmodule Blockchain do
     end
   end
 
+  @spec add_block(t, Block.t) :: {:ok, t} | {:error, atom}
+  def add_block(bc, block) do
+    with :ok <- verify_block(bc, block) do
+      link = Blockchain.Link.new(block, bc.tip)
+      {
+        :ok,
+        Map.put(bc, :tip, link)
+          |> add_block_utxo(block)
+          |> delete_block_mempool(block)
+      }
+    else
+      error -> error
+    end
+  end
+  defp add_block_utxo(bc, block), do: Map.update!(bc, :utxo, &Map.merge(&1, UTXO.from_tx(block.transactions)))
+  defp delete_block_mempool(bc, block), do: Map.update!(bc, :mempool, &Mempool.delete(&1, block.transactions))
+  
   @spec verify_block(t, Block.t) :: :ok | {:error, atom}
   def verify_block(bc, block) do
     with :ok         <- Block.verify(block),
@@ -141,11 +163,11 @@ defmodule Blockchain do
     {pubkey, _privkey} = KeyAddress.keypair(1337)
     msg = "01/Dec/2018 P Ovhagen and J Howes"
     coinbase = Transaction.coinbase([Transaction.Vout.new(1_000_000_000, KeyAddress.pubkey_to_pkh(pubkey))], msg)
-    block = Block.new([coinbase], <<0::256>>, <<0x20000100::32>>)
+    block = Block.new([coinbase], <<0::256>>, <<0x1e800000::32>>)
     %Blockchain{
       tip: %Blockchain.Link{
           block:  block,
-          hash:   Block.Header.block_hash(block.header),
+          hash:   Block.hash(block),
           prev:   nil,
           height: 0
         },

@@ -36,6 +36,9 @@ defmodule Block do
   
   @spec update_nonce(t, non_neg_integer) :: t
   def update_nonce(block, nonce), do: Map.update!(block, :header, &Map.put(&1, :nonce, nonce))
+  
+  @spec hash(t) :: Crypto.sha256
+  def hash(block), do: Block.Header.hash(block.header)
 
   @doc """
   Verifies that a block is internally consistent by checking the version number, timestamp, merkle root, and header hash.
@@ -56,7 +59,7 @@ defmodule Block do
   defp verify_version(block), do: (if block.header.version == @version, do: :ok, else: {:error, :version})
   defp verify_timestamp(block), do: (if DateTime.diff(block.header.timestamp, DateTime.utc_now) < 7200, do: :ok, else: {:error, :timestamp})
   defp verify_merkle(block), do: (if block.merkle_tree.root.hash == block.header.merkle_root, do: :ok, else: {:error, :merkle})
-  defp verify_hash(block), do: (if :binary.decode_unsigned(Block.Header.block_hash(block.header)) < calc_target(block.header.target), do: :ok, else: {:error, :hash})
+  defp verify_hash(block), do: (if :binary.decode_unsigned(Block.hash(block)) < calc_target(block.header.target), do: :ok, else: {:error, :hash})
 
   @doc """
   Turns a Block data structure into raw bytes for transmitting and writing to disk.

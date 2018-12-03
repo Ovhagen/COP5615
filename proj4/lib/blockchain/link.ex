@@ -6,7 +6,17 @@ defmodule Blockchain.Link do
   @type t :: %Blockchain.Link{
     block:  Block.t,
     hash:   Crypto.hash256,
-    prev:   Block.t | nil,
+    prev:   t | nil,
     height: non_neg_integer
   }
+  
+  @spec new(Block.t, t) :: t
+  def new(block, prev) do
+    %Blockchain.Link{
+      block:  block,
+      hash:   Block.hash(block),
+      prev:   prev,
+      height: prev.height+1
+    }
+  end
 end

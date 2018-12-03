@@ -28,8 +28,8 @@ defmodule Block.Header do
   @doc """
   Generates a block hash by serializing the header and double hashing it.
   """
-  @spec block_hash(t) :: Crypto.hash256
-  def block_hash(header), do: serialize(header) |> sha256x2
+  @spec hash(t) :: Crypto.hash256
+  def hash(header), do: serialize(header) |> sha256x2
 
   def serialize(%Block.Header{version: v, previous_hash: p, merkle_root: m, timestamp: t, target: g, nonce: n}) do
     <<v::32>> <> p <> m <> <<DateTime.to_unix(t)::32>> <> g <> <<n::32>>

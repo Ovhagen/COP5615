@@ -1,15 +1,15 @@
 # Project 4.1
-A project in the course Distributed Operating System Principles COP5615. The task for this project was to implement the Bitcoin protocol with sufficient functionality to receve, send, and mine the digital currency that is Bitcoin. Futhermore, tests were implemented to test the correctness of each task.
+A project in the course Distributed Operating System Principles COP5615. The task for this project was to implement the Bitcoin protocol with sufficient functionality to receive, send, and mine the digital currency that is Bitcoin. Furthermore, tests were implemented to test the correctness of each task. The final test presents a simple use case of sending bitcoin between two addresses with the precense of a miner to create blocks and add it to a public ledge -- namely the blockchain. 
 
 ### Author
 James Howes (UFID 9262-9312)
 Lars Pontus Ovhagen (UFID 2992-9498)
 
 ## Installation
-Download the project zip to your desired location and unzip. Make sure you have Elixir/Erlang installed on your computer and that it is in the OS path for easy command access.
+Download the project zip to your desired location and unzip it. Make sure you have Elixir/Erlang installed on your computer and that the OS path includes the elixir prompt for easy command access.
 
 ## Running the bitcoin tests
-To run the tests, change directory into `/proj4/` and write the following test calls to test independent correctness of bitcoin functionality. Please refer to the test source code for further test specific details.
+The first action to do is to change directory into `/proj4/`. Now, to run the tests the command **mix test** can be used to run all tests simultaneously. To test independent correctness of bitcoin functionality, write the following test calls listed below. Please refer to the test source code for further test specific details.
 
 ### Keyaddress test
 This test performs a simple generation of an address from a public key hash. It also tests compression and uncompression of the pubkey. To run the test, use the following command:
@@ -18,7 +18,7 @@ $ mix test test/Proj4/keyaddress_test.exs
 ```
 Refer to the file `test/Proj4/keyaddress_test.exs` for further specification on the keyaddress test.
 ### Transaction test
-The transaction test important aspects of the transaction implementation such as verification, serilization, byte size calculation, and finally the verification of a coinbase transaction.
+The transaction test important aspects of the transaction implementation such as verification, serilization, byte size calculation, and finally the verification of a coinbase transaction. Run it with the following command:
 ```sh
 $ mix test test/Proj4/transaction_test.exs
 ```

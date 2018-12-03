@@ -54,6 +54,7 @@ __Blocks/Blockchain__
 * A set of transactions can be used to create a merkle tree strucutre, which yields a root hash.
 * A merkle proof can be created as the merkle path for a specific transaction. After creation, this proof can be verified against the root hash of a block.
 * Blockchains can be verified...
+
 __Wallet/transactions__
 * A transaction can be created with inputs and outputs.
 * Transactions can be signed and verified.

@@ -1,9 +1,9 @@
 # Project 4.1
 A project in the course Distributed Operating System Principles COP5615. The task for this project was to implement the Bitcoin protocol with sufficient functionality to receive, send, and mine the digital currency that is Bitcoin. Furthermore, tests were implemented to test the correctness of each task. The final functional test presents an end-to-end simulation where hundreds of random transactions are generated and mined into new blocks sequentially.
 
-### Author
-James Howes (UFID 9262-9312)
-Lars Pontus Ovhagen (UFID 2992-9498)
+### Authors
+* James Howes (UFID 9262-9312)
+* Lars Pontus Ovhagen (UFID 2992-9498)
 
 ## Installation
 Download the project zip to your desired location and unzip it. Make sure you have Elixir/Erlang installed on your computer and that the OS path includes the elixir prompt for easy command access.

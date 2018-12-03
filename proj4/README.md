@@ -8,8 +8,8 @@ A project in the course Distributed Operating System Principles COP5615. The tas
 ## Installation
 Download the project zip to your desired location and unzip it. Make sure you have Elixir/Erlang installed on your computer and that the OS path includes the elixir prompt for easy command access.
 
-## Running the bitcoin tests
-The first action to do is to change directory into `/proj4/`. Now, to run the tests the command **mix test** can be used to run all tests simultaneously. To test independent correctness of bitcoin functionality, write the following test calls listed below. Please refer to the test source code for further test specific details.
+## Running the unit and functional tests
+The first action to do is to change directory into `/proj4/`. Now, to run the tests the command `mix test` can be used to run all tests simultaneously. To test independent correctness of bitcoin functionality, write the following test calls listed below. Please refer to the test source code for further test-specific details.
 
 ### Key and Address test
 This test performs a simple generation of an address from a public key hash. It also tests compression and uncompression of the public key. To run the test, use the following command:

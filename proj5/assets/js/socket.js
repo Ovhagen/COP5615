@@ -60,3 +60,18 @@ channel.join()
   .receive("error", resp => { console.log("Unable to join", resp) })
 
 export default socket
+
+let chatInput = $("#chat-input")
+let messagesContainer = $("#messages")
+
+chatInput.on("keypress", event => {
+  if(event.keyCode === 13){  //13 for enter
+    channel.push("new_message", {body:chatInput.val()});
+    chatInput.val("");
+  }
+
+});
+
+channel.on("new_message", payload => {
+  messagesContainer.append(`<br/>[${Date()}] ${payload.body}`)
+});

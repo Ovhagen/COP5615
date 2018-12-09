@@ -1,7 +1,8 @@
 defmodule Proj5Web.Endpoint do
   use Phoenix.Endpoint, otp_app: :proj5
 
-  socket "/socket", Proj5Web.UserSocket
+  # socket "/socket", Proj5Web.UserSocket
+  socket "/chartsocket", Proj5Web.ChartSocket
 
   # Serve at "/" the static files from "priv/static" directory.
   #

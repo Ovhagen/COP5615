@@ -5,7 +5,7 @@
 // and connect at the socket path in "lib/web/endpoint.ex":
 import {Socket} from "phoenix"
 
-let socket = new Socket("/socket", {params: {token: window.userToken}})
+let socket = new Socket("/chartsocket", {params: {token: window.userToken}})
 
 // When you connect, you'll often need to authenticate the client.
 // For example, imagine you have an authentication plug, `MyAuth`,
@@ -54,32 +54,45 @@ let socket = new Socket("/socket", {params: {token: window.userToken}})
 socket.connect()
 
 // Now that you are connected, you can join channels with a topic:
-let channel = socket.channel("rooms:lobby", {})
-channel.join()
+let chartChannel = socket.channel("charts:lobby", {})
+chartChannel.join()
   .receive("ok", resp => { console.log("Joined successfully", resp) })
   .receive("error", resp => { console.log("Unable to join", resp) })
 
 export default socket
 
 // let chatInput = $("#chat-input")
-let messagesContainer = $("#messages")
+// let messagesContainer = $("#messages")
+//
+// chatInput.on("keypress", event => {
+//   if(event.keyCode === 13){  //13 for enter
+//     channel.push("new_message", {body:chatInput.val()});
+//     chatInput.val("");
+//   }
+//
+// });
+//
+// channel.on("new_message", payload => {
+//   messagesContainer.append(`<br/>[${Date()}] ${payload.body}`)
+// });
 
-chatInput.on("keypress", event => {
-  if(event.keyCode === 13){  //13 for enter
-    channel.push("new_message", {body:chatInput.val()});
-    chatInput.val("");
+let chartContainer = $("#charts")
+
+// chatInput.on("keypress", event => {
+//   if(event.keyCode === 13){  //13 for enter
+//     channel.push("new_message", {body:chatInput.val()});
+//     chatInput.val("");
+//   }
+//
+// });
+
+chartChannel.on("upd_figure", payload => {
+    if (data.labels.length > 120) {
+    data.labels.shift();
+    data.datasets[0].data.shift()
   }
 
-});
-
-channel.on("new_message", payload => {
-  messagesContainer.append(`<br/>[${Date()}] ${payload.body}`)
-});
-
-chatInput.on("keypress", event => {
-  if(event.keyCode === 13){  //13 for enter
-    channel.push("new_message", {body:chatInput.val()});
-    chatInput.val("");
-  }
-
+  data.labels.push(Date());
+  data.datasets[0].data.push(payload.body);
+  myChart.update();
 });

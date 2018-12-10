@@ -2,7 +2,7 @@ defmodule Proj5Web.ChartSocket do
   use Phoenix.Socket
 
   ## Channels
-  channel "charts:*", Proj5Web.NetworkChannel
+  channel "charts:*", Proj5Web.ChartChannel
 
   ## Transports
   transport :websocket, Phoenix.Transports.WebSocket

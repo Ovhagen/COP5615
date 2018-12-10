@@ -20,6 +20,9 @@ defmodule Proj5.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Proj5.Supervisor]
     Supervisor.start_link(children, opts)
+
+    # start broadcasting
+    Proj5.GetRates.update_all
   end
 
   # Tell Phoenix to update the endpoint configuration

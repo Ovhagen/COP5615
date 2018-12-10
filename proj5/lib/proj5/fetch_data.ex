@@ -4,17 +4,18 @@ defmodule Proj5.FetchData do
   import Proj5.ChartStats
 
   @doc "updates all available exchange rates for 58 times"
-  def update_all do
-    get_and_distribute_data
-    :timer.sleep(1000)
-    update_all
+  def update_all(timeout) do
+    timeout
+    |> get_and_distribute_data
+    :timer.sleep(timeout)
+    update_all(timeout)
   end
 
-  def get_and_distribute_data do
+  def get_and_distribute_data(timeout) do
     get_chart_statistics
     |> extract_data
     |> broadcast_data
-    :timer.sleep(1000)
+    :timer.sleep(timeout)
   end
 
   def extract_data(map) do

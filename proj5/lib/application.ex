@@ -21,8 +21,8 @@ defmodule Proj5.Application do
     opts = [strategy: :one_for_one, name: Proj5.Supervisor]
     Supervisor.start_link(children, opts)
 
-    # start broadcasting
-    Proj5.FetchData.update_all
+    timer = 1000
+    Proj5.FetchData.update_all(timer)
   end
 
   # Tell Phoenix to update the endpoint configuration

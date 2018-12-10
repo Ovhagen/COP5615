@@ -1,37 +1,70 @@
-<!-- <canvas class="my-4 w-100" id="myChart" width="900" height="380"></canvas> -->
+<canvas class="my-4 w-100" id="myChart" width="900" height="380"></canvas>
 
 <!-- Graphs -->
-<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.min.js"></script>
 <script>
   var ctx = document.getElementById("myChart");
-  var myChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-      datasets: [{
-        data: [15339, 21345, 18483, 24003, 23489, 24092, 12034],
-        lineTension: 0,
-        backgroundColor: 'transparent',
-        borderColor: '#007bff',
-        borderWidth: 2,
-        pointBackgroundColor: '#007bff'
+
+  var data = {
+    labels: [],
+    datasets: [{
+      data: [],
+      lineTension: 0,
+      backgroundColor: 'transparent',
+      borderColor: '#007bff',
+      borderWidth: 2,
+      pointBackgroundColor: '#007bff',
+      pointHoverBorderWidth: 3,
+      pointRadius: 2
+    }]
+  }
+
+  var options = {
+    responsive: true,
+    layout: {
+        padding: {
+            left: 0,
+            right: 10,
+            top: 0,
+            bottom: 0
+        }
+    },
+    scales: {
+      xAxes: [{
+        display: false,
+        ticks: {
+          max: data.datasets[0].data.length + 10
+        },
+        scaleLabel: {
+          display: true,
+          labelString: 'Time'
+        }
+      }],
+      yAxes: [{
+        ticks: {
+          beginAtZero: false
+        },
+        scaleLabel: {
+          display: true,
+          labelString: 'Messages'
+        }
       }]
     },
-    options: {
-      scales: {
-        yAxes: [{
-          ticks: {
-            beginAtZero: false
-          }
-        }]
-      },
-      legend: {
-        display: false,
-      }
+    legend: {
+      display: false,
     }
-  });
-</script> -->
-<h1> EUR / USD </h1>
+  }
+
+ var myChart = new Chart(ctx, {type: 'line',
+                               data: data,
+                               options: options
+                             });
+</script>
+
+<h4>Chart Description</h4>
+<p class="text-left">This graph represents the activity in the network in the form of messages. In the bitcoin protocol a variety of messages
+  need to be sent in order for the network to achieve consensus.</p>
+<!-- <h1> EUR / USD </h1>
 <canvas id="myChart" width="200" height="200"></canvas>
 
 <script src="//cdnjs.cloudflare.com/ajax/libs/Chart.js/2.1.6/Chart.min.js"></script>
@@ -81,4 +114,4 @@
                                  data: data,
                                  options: options });
 
-</script>
+</script> -->

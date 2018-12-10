@@ -22,7 +22,7 @@ defmodule Proj5.Application do
     Supervisor.start_link(children, opts)
 
     # start broadcasting
-    Proj5.GetRates.update_all
+    Proj5.FetchData.update_all
   end
 
   # Tell Phoenix to update the endpoint configuration

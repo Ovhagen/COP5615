@@ -87,12 +87,12 @@ let chartContainer = $("#charts")
 // });
 
 chartChannel.on("upd_figure", payload => {
-    if (data.labels.length > 120) {
-    data.labels.shift();
-    data.datasets[0].data.shift()
+    if (myChart.data.labels.length > 120) {
+    myChart.data.labels.shift();
+    myChart.data.datasets[0].data.shift()
   }
 
-  data.labels.push(Date());
-  data.datasets[0].data.push(payload.body);
+  myChart.data.labels.push(Date());
+  myChart.data.datasets[0].data.push(payload.body);
   myChart.update();
 });

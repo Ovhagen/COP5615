@@ -2,7 +2,7 @@ defmodule Transaction do
   import Crypto
 
   @tx_version  1
-  @max_outputs 254
+  @max_outputs 255
 
   defmodule Witness do
     defstruct pubkey: <<>>, sig: <<>>
@@ -185,7 +185,7 @@ defmodule Transaction do
   }
 
   @spec new([Vin.t, ...], [Vout.t, ...]) :: t
-  def new(vin, vout) do
+  def new(vin, vout) when length(vin) < @max_outputs and length(vout) < @max_outputs do
     %Transaction{
       version: @tx_version,
       vin: vin,
@@ -197,7 +197,7 @@ defmodule Transaction do
   def coinbase(vout, msg \\ <<0::272>>), do: new([Vin.coinbase(pad_msg(msg))], vout)
   defp pad_msg(<<msg::binary-34, _::binary>>), do: msg
   defp pad_msg(msg) do
-    pad_bytes = 8* (34 - byte_size(msg))
+    pad_bytes = 8*(34 - byte_size(msg))
     msg <> <<0::size(pad_bytes)>>
   end
   

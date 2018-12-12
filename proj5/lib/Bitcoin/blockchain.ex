@@ -3,7 +3,7 @@ defmodule Blockchain do
   
   @coin 1_000_000
   @interval_target 5
-  @block_size 50_000
+  @block_size 20_000
 
   defmodule Mempool do
     defstruct tx: %Transaction{}, fee: 0
@@ -263,4 +263,6 @@ defmodule Blockchain do
       utxo: Blockchain.UTXO.from_tx(coinbase)
     }
   end
+  
+  def block_size(), do: @block_size
 end

@@ -4,12 +4,34 @@ defmodule Miner do
   """
 
   import Crypto
-  import KeyAddress
+  @tx_buffer 200
   
   @doc """
-  
+  Selects transactions from the mempool for inclusion in the new block. If all transactions cannot
+  fit in a single block, then transactions are selected in descending fee density (fee/byte).
   """
-  
+  @spec select_txs(Mempool.t) :: Mempool.t
+  def select_txs(mempool) do
+    limit = Blockchain.block_size - @tx_buffer
+    total = Enum.map(mempool, fn item -> Transaction.bytes(item.tx) + 2 end) |> Enum.sum
+    if total < limit do
+      mempool
+    else
+      Enum.sort_by(mempool, fn item -> item.fee/(Transaction.bytes(item.tx) + 2) end, &>=/2)
+      |> knapsack(limit)
+    end
+  end
+  defp knapsack(mempool, limit), do: knapsack(mempool, limit, [])
+  defp knapsack(_mempool, 0, items), do: items
+  defp knapsack([], _limit, items), do: items
+  defp knapsack([item | tail], limit, items) do
+    size = Transaction.bytes(item.tx) + 2
+    if size <= limit do
+      knapsack(tail, limit-size, items ++ [item])
+    else
+      knapsack(tail, limit, items)
+    end
+  end
 
   @doc """
   Constructs a coinbase transaction based on the blockchain and mempool provided.
@@ -31,6 +53,7 @@ defmodule Miner do
   """
   @spec build_block(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Block.t
   def build_block(bc, mempool, pkh, msg \\ <<>>) do
+    mempool = select_txs(mempool)
     transactions = [coinbase(bc, mempool, pkh, msg)]
       ++ Enum.map(Map.values(mempool), &Map.get(&1, :tx))
     Block.new(transactions, bc.tip.hash, Blockchain.next_target(bc))

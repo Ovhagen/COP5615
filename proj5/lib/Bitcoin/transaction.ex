@@ -1,6 +1,5 @@
 defmodule Transaction do
   import Crypto
-  import KeyAddress
 
   @tx_version  1
   @max_outputs 254
@@ -29,7 +28,7 @@ defmodule Transaction do
     Returns true if the witness is valid, false otherwise.
     """
     @spec verify(t | binary, Crypto.hash256) :: boolean
-    def verify(%Witness{pubkey: <<>>, sig: sig}, msg), do: false
+    def verify(%Witness{pubkey: <<>>}, _msg), do: false
     def verify(%Witness{pubkey: pubkey, sig: sig}, msg) do
       :crypto.verify(:ecdsa, :sha256, msg, sig, [KeyAddress.uncompress_pubkey(pubkey), :secp256k1])
     end
@@ -164,17 +163,21 @@ defmodule Transaction do
       }
     end
 
+    @spec serialize(t | [t]) :: binary
     def serialize([vout | tail]), do: serialize(vout) <> serialize(tail)
     def serialize(%Vout{value: value, pkh: pkh}), do: <<value::32>> <> pkh
     def serialize([]), do: <<>>
 
+    @spec deserialize(binary) :: t
     def deserialize(<<value::32, pkh::binary-20>>), do: %Vout{value: value, pkh: pkh}
 
+    @spec bytes(t) :: non_neg_integer
     def bytes(_vout), do: 24
   end
 
   defstruct version: @tx_version, vin: [], vout: []
 
+  @type id :: Crypto.hash256
   @type t :: %Transaction{
     version: non_neg_integer,
     vin:     [Vin.t, ...],
@@ -198,6 +201,7 @@ defmodule Transaction do
     msg <> <<0::size(pad_bytes)>>
   end
   
+  @spec verify_coinbase(Transaction.t) :: {:ok, pos_integer} | {:error, atom}
   def verify_coinbase(tx) do
     with :ok <- verify_coinbase_io(tx),
          :ok <- Vin.verify_coinbase(hd(tx.vin))
@@ -207,7 +211,6 @@ defmodule Transaction do
       error -> error
     end
   end
-  
   defp verify_coinbase_io(tx) do
     if length(tx.vin) != 1 or length(tx.vout) == 0, do: {:error, :io_count}, else: :ok
   end
@@ -216,6 +219,14 @@ defmodule Transaction do
   def fee(vin, vout), do: sum_value(vin) - sum_value(vout)
   defp sum_value(vout), do: Enum.reduce(vout, 0, &(&2 + &1.value))
 
+  @doc """
+  Cryptographically signs a transaction using the keypairs provided.
+  Each keypair is matched to each transaction input in order. If only one keypair is provided
+  but there are multiple inputs, then the same keypair is used to sign all inputs.
+  """
+  @spec sign(t, KeyAddress.pubkey | [KeyAddress.pubkey, ...], KeyAddress.privkey | [KeyAddress.privkey, ...]) :: t
+  def sign(tx, pubkey, privkey) when not is_list(pubkey), do: sign(tx, List.duplicate(pubkey, length(tx.vin)), privkey)
+  def sign(tx, pubkey, privkey) when not is_list(privkey), do: sign(tx, pubkey, List.duplicate(privkey, length(tx.vin)))
   def sign(tx, pubkeys, privkeys) do
     sighash = sighash(tx)
     Map.update!(tx, :vin, fn vin ->
@@ -230,6 +241,7 @@ defmodule Transaction do
 
   def sighash(tx), do: serialize(tx, true) |> sha256x2
 
+  def hash(txs) when is_list(txs), do: Enum.map(txs, &hash/1)
   def hash(tx), do: serialize(tx, false) |> sha256x2
 
   def serialize(%Transaction{version: version, vin: vin, vout: vout}, sighash \\ false) do

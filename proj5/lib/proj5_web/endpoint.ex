@@ -1,7 +1,8 @@
 defmodule Proj5Web.Endpoint do
   use Phoenix.Endpoint, otp_app: :proj5
 
-  socket "/socket", Proj5Web.UserSocket
+  # socket "/socket", Proj5Web.UserSocket
+  socket "/chartsocket", Proj5Web.ChartSocket
 
   # Serve at "/" the static files from "priv/static" directory.
   #
@@ -9,7 +10,7 @@ defmodule Proj5Web.Endpoint do
   # when deploying your static files in production.
   plug Plug.Static,
     at: "/", from: :proj5, gzip: false,
-    only: ~w(css fonts images js favicon.ico robots.txt)
+    only: ~w(css fonts images js favicon.ico btc.png robots.txt)
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.

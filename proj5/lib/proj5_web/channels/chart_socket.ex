@@ -1,8 +1,8 @@
-defmodule Proj5Web.UserSocket do
+defmodule Proj5Web.ChartSocket do
   use Phoenix.Socket
 
   ## Channels
-  channel "rooms:*", Proj5Web.RoomChannel
+  channel "charts:*", Proj5Web.ChartChannel
 
   ## Transports
   transport :websocket, Phoenix.Transports.WebSocket

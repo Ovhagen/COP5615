@@ -5,7 +5,7 @@
 // and connect at the socket path in "lib/web/endpoint.ex":
 import {Socket} from "phoenix"
 
-let socket = new Socket("/socket", {params: {token: window.userToken}})
+let socket = new Socket("/chartsocket", {params: {token: window.userToken}})
 
 // When you connect, you'll often need to authenticate the client.
 // For example, imagine you have an authentication plug, `MyAuth`,
@@ -51,35 +51,59 @@ let socket = new Socket("/socket", {params: {token: window.userToken}})
 // Finally, pass the token on connect as below. Or remove it
 // from connect if you don't care about authentication.
 
-socket.connect()
+socket.connect();
+
+var chartKey = "";
+var address = window.location.href;
+
+
+address = address.substr(address.lastIndexOf('/')+1);
+
+switch (address) {
+  case "transactions":
+    chartKey = "tx"
+    break;
+  default:
+    chartKey = "msg"
+}
 
 // Now that you are connected, you can join channels with a topic:
-let channel = socket.channel("rooms:lobby", {})
-channel.join()
+let chartChannel = socket.channel("charts:lobby", {})
+chartChannel.join()
   .receive("ok", resp => { console.log("Joined successfully", resp) })
   .receive("error", resp => { console.log("Unable to join", resp) })
 
+chartChannel.push("render_state", {body: "state"})
+
+function zip(arrays) {
+    return arrays[0].map(function(_,i){
+        return arrays.map(function(array){return array[i]})
+    });
+}
+
+function pushDataPoint(x_data, y_data){
+  if (myChart.data.labels.length > 120) {
+    myChart.data.labels.shift();
+    myChart.data.datasets[0].data.shift();
+  }
+
+  myChart.data.labels.push(y_data);
+  myChart.data.datasets[0].data.push(x_data);
+}
+
+chartChannel.on("render_state", payload => {
+  if(payload[chartKey].length > 0){
+    console.log(payload[chartKey]);
+    zip(payload[chartKey]).forEach(function(value){
+      pushDataPoint(value[0], value[1]);
+    });
+    myChart.update();
+  }
+});
+
 export default socket
 
-// let chatInput = $("#chat-input")
-let messagesContainer = $("#messages")
-
-chatInput.on("keypress", event => {
-  if(event.keyCode === 13){  //13 for enter
-    channel.push("new_message", {body:chatInput.val()});
-    chatInput.val("");
-  }
-
-});
-
-channel.on("new_message", payload => {
-  messagesContainer.append(`<br/>[${Date()}] ${payload.body}`)
-});
-
-chatInput.on("keypress", event => {
-  if(event.keyCode === 13){  //13 for enter
-    channel.push("new_message", {body:chatInput.val()});
-    chatInput.val("");
-  }
-
+chartChannel.on("upd_figure", payload => {
+    pushDataPoint(payload.body[chartKey][0], payload.body[chartKey][1]);
+    myChart.update();
 });

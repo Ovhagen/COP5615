@@ -46,21 +46,21 @@
                 </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a id="tx_trans" class="nav-link" href="<%= page_path(@conn, :transacted) %>">
                   <span data-feather="dollar-sign"></span>
                   Transacted bitcoins
                 </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a id="btc_mined" class="nav-link" href="<%= page_path(@conn, :mined) %>">
                   <span data-feather="copy"></span>
                   Bitcoins mined
                 </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a id="hash_rate" class="nav-link" href="<%= page_path(@conn, :hashrate) %>">
                   <span data-feather="zap"></span>
-                  Hash Rate
+                  Hash rate
                 </a>
               </li>
             </ul>
@@ -102,6 +102,15 @@
     switch (active_page) {
       case "transactions":
         setActive("tx");
+        break;
+      case "transacted":
+        setActive("tx_trans");
+        break;
+      case "mined":
+        setActive("btc_mined");
+        break;
+      case "hashrate":
+        setActive("hash_rate");
         break;
       default:
         setActive("msg");

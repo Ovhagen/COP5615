@@ -62,6 +62,15 @@ switch (active_page) {
   case "transactions":
     chartKey = "tx"
     break;
+  case "transacted":
+    chartKey = "tx_trans"
+    break;
+  case "mined":
+    chartKey = "btc_mined"
+    break;
+  case "hashrate":
+    chartKey = "hash_rate"
+    break;
   default:
     chartKey = "msg"
 }

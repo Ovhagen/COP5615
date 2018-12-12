@@ -1,6 +1,7 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-  <h1 class="h2">Messages sent</h1>
+  <h1 class="h2">Hash rate</h1>
 </div>
+
 
 <canvas class="my-4 w-100" id="myChart" width="900" height="380"></canvas>
 
@@ -8,15 +9,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.min.js"></script>
 <script>
   var ctx = document.getElementById("myChart");
+
   var data = {
     labels: [],
     datasets: [{
       data: [],
       lineTension: 0,
       backgroundColor: 'transparent',
-      borderColor: '#007bff',
+      borderColor: 'rgb(30, 178, 219)',
       borderWidth: 2,
-      pointBackgroundColor: '#007bff',
+      pointBackgroundColor: 'rgb(30, 178, 219)',
       pointHoverBorderWidth: 3,
       pointRadius: 2
     }]
@@ -51,12 +53,13 @@
         },
         scaleLabel: {
           display: true,
-          labelString: 'Messages'
+          labelString: 'kH/s'
         }
       }]
     },
     legend: {
       display: false,
+      reverse: true
     }
   }
 
@@ -67,5 +70,4 @@
 </script>
 
 <h4>Chart Description</h4>
-<p class="text-left">This graph represents the activity in the network in the form of messages. In the bitcoin protocol a variety of messages
-  need to be sent in order for the network to achieve consensus.</p>
+<p class="text-left">The graph visualizes the amount of hash power currently present in the network.</p>

@@ -14,28 +14,13 @@ defmodule Proj5.FetchData do
   def get_and_distribute_data(timeout, startTime) do
     startTime
     |> get_chart_statistics
-    |> extract_data
     |> broadcast_data
     :timer.sleep(timeout)
   end
 
-  def extract_data(map) do
-    # Logger.debug(inspect(map))
-
-    #Nbr of messages
-    %{:msg => msgs,
-      :tx => txs} = map
-    # Logger.debug("[#{NaiveDateTime.utc_now}] Number of messages: #{msgs}")
-    # Logger.debug("[#{NaiveDateTime.utc_now}] Number of txs: #{txs}")
-
-    map
-  end
-
   def broadcast_data(data) do
-    # messages = Enum.at(data, 0)
     #Broadcast to all participants
     Proj5Web.Endpoint.broadcast "charts:lobby", "upd_figure", %{"body" => data}
     Proj5Web.ChartChannel.update_charts(data)
-    # Logger.debug("New generated data '#{inspect(data)}' broadcasted")
   end
 end

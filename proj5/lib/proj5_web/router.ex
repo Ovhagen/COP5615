@@ -18,6 +18,9 @@ defmodule Proj5Web.Router do
 
     get "/", PageController, :index
     get "/transactions", PageController, :transactions
+    get "/transacted", PageController, :transacted
+    get "/mined", PageController, :mined
+    get "/hashrate", PageController, :hashrate
   end
 
   # Other scopes may use custom stacks.

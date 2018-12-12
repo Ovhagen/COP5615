@@ -24,3 +24,22 @@ In the application you can see various statistics and metrics collected from a l
 
 ## Bitcoin Tests
 Since this project was built on a previous project, additional features were added to fully implement the distributed Bitcoin protocol.
+Our new unit tests include ....
+You can run them individually by .....
+
+## Network observations
+* Graph1
+* Graph2
+* Graph3
+...
+
+## Scenarios
+
+#### Forks
+* Handle branches and drop them dynamically as the chain progresses.
+
+#### Transactions
+* Transaction exclusion (low fee, still guaranteed to be included? how long does it take?)
+* Wallet displaying balance after certain amount of confirmations
+
+#### ....

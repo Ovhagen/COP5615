@@ -1,4 +1,4 @@
-defmodule Proj5.KeyAddressTest do
+defmodule Proj4.KeyAddressTest do
   use ExUnit.Case
   @moduledoc """
   This module defines unit tests for the KeyAddress module.
@@ -11,14 +11,14 @@ defmodule Proj5.KeyAddressTest do
       pkh:     KeyAddress.pubkey_to_pkh(pubkey)
     }
   end
-
+  
   @doc """
   This test verifies that a public key can be compressed and uncompressed successfully.
   """
   test "Compress and uncompress public key", data do
     assert data.pubkey == KeyAddress.uncompress_pubkey(KeyAddress.compress_pubkey(data.pubkey))
   end
-
+  
   @doc """
   This test verifies that a public key hash can be recovered from an address.
   """

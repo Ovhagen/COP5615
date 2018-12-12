@@ -11,11 +11,12 @@ defmodule Blocktree do
   
   @active_depth 6
   
-  defstruct mainchain: %Blockchain{}, forks: []
+  defstruct mainchain: %Blockchain{}, forks: [], orphans: %{}
   
   @type t :: %Blocktree{
     mainchain: Blockchain.t,
-    forks:     [Blockchain.t]
+    forks:     [Blockchain.t],
+    orphans:   %{required(Crypto.hash256) => Block.t}
   }
   
   @doc """
@@ -31,7 +32,7 @@ defmodule Blocktree do
   def new(bc) do
     %Blocktree{
       mainchain: bc,
-      forks:     [bc]
+      forks:     [bc],
     }
   end
   
@@ -41,16 +42,20 @@ defmodule Blocktree do
   @spec forked?(t) :: boolean
   def forked?(bt), do: length(bt.forks) > 1
   
+  ## Functions for adding new blocks
+  
   @doc """
   Attempts to add a new block to each active fork (including the mainchain).
-  Returns :ok if the block was successfully added to any chain, and an error otherwise.
+  Returns :ok if the block was successfully added to any chain, :orphan if the block could not
+  be attached to any chain, and .
   """
   @spec add_block(t | Blockchain.t | [Blockchain.t, ...], Block.t) :: t
   def add_block(%Blocktree{} = bt, block) do
     case add_block(bt.forks, block, bt.mainchain.tip.height-@active_depth) do
-      {:ok, bc}   -> update_fork(bt, bc) |> purge_old_forks
-      {:fork, bc} -> add_fork(bt, bc)
-      error       -> error
+      {:ok, bc}         -> update_fork(bt, bc) |> purge_old_forks |> check_orphans(block)
+      {:fork, bc}       -> add_fork(bt, bc) |> check_orphans(block)
+      {:error, :orphan} -> add_orphan(block)
+      error             -> error
     end
   end
   defp add_block([], _block, _limit), do: {:error, :orphan}
@@ -114,4 +119,28 @@ defmodule Blocktree do
   defp purge_old_forks(bt) do
     Map.update!(bt, :forks, &Enum.reject(&1, fn bc -> bc.tip.height < bt.mainchain.tip.height - @active_depth end))
   end
+  
+  defp add_orphan(bt, block), do: {:orphan, Map.update!(bt, :orphans, &Map.put(&1, block.header.previous_hash, block))}
+  
+  defp check_orphans(bt, block) do
+    hash = Block.hash(block)
+    if hash in Map.keys(bt.orphans), do: add_block(bt, Map.get(bt.orphans, hash)), else: {:ok, bt}
+  end
+  
+  ## Functions for adding transactions to the mempool
+  
+  @spec add_to_mempool(t, Transaction.t) :: {:ok, t} | {:error, atom}
+  def add_to_mempool(bt, tx) do
+    case add_to_mempools(bt.forks, tx) do
+      {:error, :orphan} -> # Hang on to the transaction?
+      {:error, error}   -> # Get rid of it
+      {:ok, forks}      -> Map.put(bt, :forks, forks)
+    end
+  end
+  
+  defp add_to_mempools([], tx, []), do: {:error, :orphan}
+  defp add_to_mempools([bc | tail], tx, forks) do
+    case Blockchain.add_to_mempool(bc, tx) do
+      {:ok, bc} -> 
+      {:error, error} when error in [:spent, :utxo] -> add_to_mempools()
 end

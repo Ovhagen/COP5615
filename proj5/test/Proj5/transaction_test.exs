@@ -1,4 +1,4 @@
-defmodule Proj5.TransactionTest do
+defmodule Proj4.TransactionTest do
   use ExUnit.Case
   @moduledoc """
   This module defines unit tests for the Transaction module
@@ -19,12 +19,12 @@ defmodule Proj5.TransactionTest do
   test "Verify a signed transaction", data do
     # Valid signature
     assert Transaction.verify(data.tx)
-
+    
     # Invalid signature (public and private keys don't match)
     {pubkey, _} = KeyAddress.keypair
     {_, privkey} = KeyAddress.keypair
     assert Transaction.verify(Transaction.sign(data.tx, [pubkey], [privkey])) == false
-
+    
     # Valid signature, but wrong signed message
     tx = Transaction.test(1, 2) |> Map.put(:vin, data.tx.vin)
     assert Transaction.verify(tx) == false
@@ -36,7 +36,7 @@ defmodule Proj5.TransactionTest do
   test "Serialize and deserialize transaction", data do
     # Serialize and deserialize a regular transaction
     assert data.tx == Transaction.deserialize(Transaction.serialize(data.tx))
-
+    
     # Serialize and deserialize a coinbase transaction
     assert data.coinbase == Transaction.deserialize(Transaction.serialize(data.coinbase))
   end
@@ -59,7 +59,7 @@ defmodule Proj5.TransactionTest do
     # Transaction must have at least one output
     no_outputs = Map.put(data.coinbase, :vout, [])
     assert {:error, :io_count} == Transaction.verify_coinbase(no_outputs)
-
+    
     # Transaction must have exactly one input
     no_inputs = Map.put(data.coinbase, :vin, [])
     assert {:error, :io_count} == Transaction.verify_coinbase(no_inputs)

@@ -47,14 +47,14 @@ defmodule Blocktree do
   @doc """
   Attempts to add a new block to each active fork (including the mainchain).
   Returns :ok if the block was successfully added to any chain, :orphan if the block could not
-  be attached to any chain, and .
+  be attached to any chain, and :error if the block is invalid.
   """
   @spec add_block(t | Blockchain.t | [Blockchain.t, ...], Block.t) :: t
   def add_block(%Blocktree{} = bt, block) do
     case add_block(bt.forks, block, bt.mainchain.tip.height-@active_depth) do
       {:ok, bc}         -> update_fork(bt, bc) |> purge_old_forks |> check_orphans(block)
       {:fork, bc}       -> add_fork(bt, bc) |> check_orphans(block)
-      {:error, :orphan} -> add_orphan(block)
+      {:error, :orphan} -> add_orphan(bt, block)
       error             -> error
     end
   end
@@ -127,20 +127,31 @@ defmodule Blocktree do
     if hash in Map.keys(bt.orphans), do: add_block(bt, Map.get(bt.orphans, hash)), else: {:ok, bt}
   end
   
-  ## Functions for adding transactions to the mempool
+  ## Functions for managing the mempool(s)
   
   @spec add_to_mempool(t, Transaction.t) :: {:ok, t} | {:error, atom}
   def add_to_mempool(bt, tx) do
     case add_to_mempools(bt.forks, tx) do
-      {:error, :orphan} -> # Hang on to the transaction?
-      {:error, error}   -> # Get rid of it
-      {:ok, forks}      -> Map.put(bt, :forks, forks)
+      {:ok, forks} -> {:ok, Map.put(bt, :forks, forks)}
+      error        -> error
     end
   end
-  
-  defp add_to_mempools([], tx, []), do: {:error, :orphan}
-  defp add_to_mempools([bc | tail], tx, forks) do
-    case Blockchain.add_to_mempool(bc, tx) do
-      {:ok, bc} -> 
-      {:error, error} when error in [:spent, :utxo] -> add_to_mempools()
+  defp add_to_mempools(forks, tx) do
+    {forks, flag} =
+      Enum.map_reduce(forks, :orphan, fn
+        bc, {:error, error} -> {bc, {:error, error}}
+        bc, flag ->
+          case Blockchain.add_to_mempool(bc, tx) do
+            {:ok, bc}        -> {bc, :ok}
+            {:error, :utxo}  -> {bc, flag}
+            {:error, :spent} -> {bc, flag}
+            error            -> {bc, error}
+          end
+      end)
+    case flag do
+      :ok     -> {:ok, forks}
+      :orphan -> {:error, :orphan}
+      error   -> error
+    end
+  end
 end

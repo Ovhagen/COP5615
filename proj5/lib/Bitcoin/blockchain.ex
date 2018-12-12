@@ -3,6 +3,7 @@ defmodule Blockchain do
   
   @coin 1_000_000
   @interval_target 5
+  @block_size 50_000
 
   defmodule Mempool do
     defstruct tx: %Transaction{}, fee: 0
@@ -164,6 +165,7 @@ defmodule Blockchain do
   @spec verify_block(t, Block.t) :: :ok | {:error, atom}
   def verify_block(bc, block) do
     with :ok         <- Block.verify(block),
+         :ok         <- verify_size(block),
          :ok         <- verify_tip(bc, block),
          :ok         <- verify_target(bc, block),
          {:ok, fees} <- verify_mempool(bc, block),
@@ -174,6 +176,7 @@ defmodule Blockchain do
       error -> error
     end
   end
+  defp verify_size(block), do: (if block.bytes <= @block_size, do: :ok, else: {:error, :size})
   defp verify_tip(bc, block) do
     if block.header.previous_hash == bc.tip.hash, do: :ok, else: {:error, :tip}
   end

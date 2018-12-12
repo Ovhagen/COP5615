@@ -6,7 +6,7 @@ defmodule Bitcoin.Node do
   
   Each Node may also run a mining operation, in which new blocks are created and added to the blockchain.
   """
-  use Genserver
+  use GenServer
   
   # Client interface
   

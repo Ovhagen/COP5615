@@ -5,6 +5,11 @@ defmodule Miner do
 
   import Crypto
   import KeyAddress
+  
+  @doc """
+  
+  """
+  
 
   @doc """
   Constructs a coinbase transaction based on the blockchain and mempool provided.

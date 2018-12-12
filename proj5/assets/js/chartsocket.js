@@ -101,7 +101,6 @@ function pushDataPoint(x_data, y_data){
 
 chartChannel.on("render_state", payload => {
   if(payload[chartKey].length > 0){
-    console.log(payload[chartKey]);
     zip(payload[chartKey]).forEach(function(value){
       pushDataPoint(value[0], value[1]);
     });

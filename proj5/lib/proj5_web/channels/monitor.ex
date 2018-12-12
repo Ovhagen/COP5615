@@ -14,12 +14,11 @@ defmodule Proj5Web.ChartChannel.Monitor do
   end
 
   defp get_chart_state(state) do
-    Logger.debug("Current get state: #{inspect(state)}")
+    # Logger.debug("State for client: #{inspect(state)}")
     state
   end
 
   def chart_update(new_data) do
-    Logger.debug("init update: #{inspect(new_data)}")
     Agent.update(__MODULE__, fn state -> chart_update(state, new_data) end)
   end
 

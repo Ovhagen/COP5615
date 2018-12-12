@@ -1,6 +1,4 @@
 defmodule Proj5.FetchData do
-  require Logger
-
   import Proj5.ChartStats
 
   @doc "updates all available exchange rates for 58 times"

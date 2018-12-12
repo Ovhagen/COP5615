@@ -16,9 +16,9 @@
       data: [],
       lineTension: 0,
       backgroundColor: 'transparent',
-      borderColor: 'rgb(153, 102, 255)',
+      borderColor: 'rgb(244, 39, 39)',
       borderWidth: 2,
-      pointBackgroundColor: 'rgb(153, 102, 255)',
+      pointBackgroundColor: 'rgb(244, 39, 39)',
       pointHoverBorderWidth: 3,
       pointRadius: 2
     }]

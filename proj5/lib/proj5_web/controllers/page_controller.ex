@@ -8,4 +8,5 @@ defmodule Proj5Web.PageController do
   def transactions(conn, _params) do
     render conn, "transactions.html"
   end
+
 end

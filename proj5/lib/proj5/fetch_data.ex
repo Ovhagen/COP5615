@@ -22,16 +22,17 @@ defmodule Proj5.FetchData do
     Logger.debug(inspect(map))
 
     #Nbr of messages
-    %{:nbrOfMessages => nbrOfMessages} = map
-    Logger.debug("[#{NaiveDateTime.utc_now}] Number of messages: #{nbrOfMessages}")
+    %{:msg => msgs,
+      :tx => txs} = map
+    # Logger.debug("[#{NaiveDateTime.utc_now}] Number of messages: #{msgs}")
+    # Logger.debug("[#{NaiveDateTime.utc_now}] Number of txs: #{txs}")
 
-
-    [nbrOfMessages]
+    map
   end
 
   def broadcast_data(data) do
-    messages = Enum.at(data, 0)
-    Proj5Web.Endpoint.broadcast "charts:lobby", "upd_figure", %{"body" => messages}
-    Logger.debug("New exchange rate '#{messages}' broadcasted")
+    # messages = Enum.at(data, 0)
+    Proj5Web.Endpoint.broadcast "charts:lobby", "upd_figure", %{"body" => data}
+    # Logger.debug("New generated data '#{inspect(data)}' broadcasted")
   end
 end

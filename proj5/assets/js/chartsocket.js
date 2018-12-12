@@ -59,40 +59,38 @@ chartChannel.join()
   .receive("ok", resp => { console.log("Joined successfully", resp) })
   .receive("error", resp => { console.log("Unable to join", resp) })
 
-export default socket
+chartChannel.push("render_state", {body: "state"})
 
-// let chatInput = $("#chat-input")
-// let messagesContainer = $("#messages")
-//
-// chatInput.on("keypress", event => {
-//   if(event.keyCode === 13){  //13 for enter
-//     channel.push("new_message", {body:chatInput.val()});
-//     chatInput.val("");
-//   }
-//
-// });
-//
-// channel.on("new_message", payload => {
-//   messagesContainer.append(`<br/>[${Date()}] ${payload.body}`)
-// });
+function zip(arrays) {
+    return arrays[0].map(function(_,i){
+        return arrays.map(function(array){return array[i]})
+    });
+}
 
-let chartContainer = $("#charts")
-
-// chatInput.on("keypress", event => {
-//   if(event.keyCode === 13){  //13 for enter
-//     channel.push("new_message", {body:chatInput.val()});
-//     chatInput.val("");
-//   }
-//
-// });
-
-chartChannel.on("upd_figure", payload => {
-    if (myChart.data.labels.length > 120) {
+function pushDataPoint(x_data, y_data){
+  if (myChart.data.labels.length > 120) {
     myChart.data.labels.shift();
-    myChart.data.datasets[0].data.shift()
+    myChart.data.datasets[0].data.shift();
   }
 
-  myChart.data.labels.push(Date());
-  myChart.data.datasets[0].data.push(payload.body);
-  myChart.update();
+  myChart.data.labels.push(y_data);
+  myChart.data.datasets[0].data.push(x_data);
+}
+
+chartChannel.on("render_state", payload => {
+  if(payload["msg"].length > 0){
+    console.log(payload["msg"]);
+    zip(payload["msg"]).forEach(function(value){
+      pushDataPoint(value[0], value[1]);
+    });
+    myChart.update();
+  }
+});
+
+export default socket
+
+chartChannel.on("upd_figure", payload => {
+    chartChannel.push("upd_state", {body: payload.body})
+    pushDataPoint(payload.body["msg"][0], payload.body["msg"][1]);
+    myChart.update();
 });

@@ -12,6 +12,8 @@ defmodule Proj5.Application do
       supervisor(Proj5.Repo, []),
       # Start the endpoint when the application starts
       supervisor(Proj5Web.Endpoint, []),
+
+      worker(Proj5Web.ChartChannel.Monitor, [%{"msg" => [], "tx" => []}])
       # Start your own worker by calling: Proj5.Worker.start_link(arg1, arg2, arg3)
       # worker(Proj5.Worker, [arg1, arg2, arg3]),
     ]
@@ -21,7 +23,7 @@ defmodule Proj5.Application do
     opts = [strategy: :one_for_one, name: Proj5.Supervisor]
     Supervisor.start_link(children, opts)
 
-    timer = 1000
+    timer = 1500
     Proj5.FetchData.update_all(timer)
   end
 

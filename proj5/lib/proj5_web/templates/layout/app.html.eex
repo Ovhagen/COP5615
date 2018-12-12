@@ -123,5 +123,7 @@
     <script>
       feather.replace()
     </script>
+
+    <script>window.userToken = "<%= assigns[:user_id] %>"</script>
   </body>
 </html>

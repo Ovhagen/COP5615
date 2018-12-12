@@ -51,7 +51,21 @@ let socket = new Socket("/chartsocket", {params: {token: window.userToken}})
 // Finally, pass the token on connect as below. Or remove it
 // from connect if you don't care about authentication.
 
-socket.connect()
+socket.connect();
+
+var chartKey = "";
+var address = window.location.href;
+
+
+address = address.substr(address.lastIndexOf('/')+1);
+
+switch (address) {
+  case "transactions":
+    chartKey = "tx"
+    break;
+  default:
+    chartKey = "msg"
+}
 
 // Now that you are connected, you can join channels with a topic:
 let chartChannel = socket.channel("charts:lobby", {})
@@ -78,9 +92,9 @@ function pushDataPoint(x_data, y_data){
 }
 
 chartChannel.on("render_state", payload => {
-  if(payload["msg"].length > 0){
-    console.log(payload["msg"]);
-    zip(payload["msg"]).forEach(function(value){
+  if(payload[chartKey].length > 0){
+    console.log(payload[chartKey]);
+    zip(payload[chartKey]).forEach(function(value){
       pushDataPoint(value[0], value[1]);
     });
     myChart.update();
@@ -90,7 +104,6 @@ chartChannel.on("render_state", payload => {
 export default socket
 
 chartChannel.on("upd_figure", payload => {
-    chartChannel.push("upd_state", {body: payload.body})
-    pushDataPoint(payload.body["msg"][0], payload.body["msg"][1]);
+    pushDataPoint(payload.body[chartKey][0], payload.body[chartKey][1]);
     myChart.update();
 });

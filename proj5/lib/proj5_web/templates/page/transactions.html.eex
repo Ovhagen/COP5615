@@ -46,10 +46,15 @@
     },
     scales: {
       xAxes: [{
-        display: false,
+        display: true,
         scaleLabel: {
           display: true,
-          labelString: 'Time'
+          labelString: 'Time (seconds)'
+        },
+        ticks: {
+           callback: function(t) {
+             return t + 's';
+           }
         }
       }],
       yAxes: [{

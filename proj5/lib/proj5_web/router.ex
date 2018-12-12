@@ -17,7 +17,7 @@ defmodule Proj5Web.Router do
     pipe_through :browser # Use the default browser stack
 
     get "/", PageController, :index
-    get "/transaction", PageController, :transactions
+    get "/transactions", PageController, :transactions
   end
 
   # Other scopes may use custom stacks.

@@ -24,7 +24,8 @@ defmodule Proj5.Application do
     Supervisor.start_link(children, opts)
 
     timer = 1500
-    Proj5.FetchData.update_all(timer)
+    startTime = DateTime.utc_now
+    Proj5.FetchData.update_all(timer, startTime)
   end
 
   # Tell Phoenix to update the endpoint configuration

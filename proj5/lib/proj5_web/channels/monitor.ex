@@ -18,7 +18,7 @@ defmodule Proj5Web.ChartChannel.Monitor do
   end
 
   def chart_update(new_data) do
-    # Logger.debug("init update: #{inspect(new_data)}")
+    Logger.debug("init update: #{inspect(new_data)}")
     Agent.update(__MODULE__, fn state -> chart_update(state, new_data) end)
   end
 
@@ -28,7 +28,7 @@ defmodule Proj5Web.ChartChannel.Monitor do
       [] ->
         new_data |> Enum.map(fn {key, val} -> {key, [[Enum.at(new_data[key], 0)], [Enum.at(new_data[key], 1)]]} end) |> Enum.into(%{})
       data ->
-        new_data |> Enum.map(fn {chart, [data, time]} -> {chart, [Enum.at(state[chart], 0) ++ [data], Enum.at(state[chart], 1)] ++ [time]} end) |> Enum.into(%{})
+        new_data |> Enum.map(fn {chart, [data, time]} -> {chart, [Enum.at(state[chart], 0) ++ [data], Enum.at(state[chart], 1) ++ [time]]} end) |> Enum.into(%{})
     end
   end
 end

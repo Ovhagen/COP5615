@@ -70,5 +70,43 @@ defmodule Proj4.MerkleTreeTest do
     proof = [:crypto.strong_rand_bytes(32)] ++ tl(proof)
     assert(MerkleTree.solve_proof(proof, tree.root.hash) == false) #Create a proof for the new transaction
   end
-
+  
+  @doc """
+  This test builds a tree and then sequentially trims all transactions from the tree, verifying that
+  the root hash is the same after each trim operation.
+  """
+  test "Trim transactions", _test_data do
+    count = 23
+    tree = MerkleTree.build_tree(for _n <- 1..count, do: (Transaction.test(1,2)))
+    Enum.shuffle(0..count-1)
+    |> Enum.map_reduce(tree, fn index, tree ->
+         trimmed = MerkleTree.trim_tx(tree, index)
+         {trimmed.root.hash, trimmed}
+       end)
+    |> elem(0)
+    |> Enum.each(fn root -> assert root == tree.root.hash end)
+  end
+  
+  @doc """
+  This test verifies that a tree can be serialized and deserialized correctly.
+  The check is performed with a full tree, and then each transaction is trimmed in random order
+  and the serialization is checked after each.
+  """
+  test "Serialize and deserialize a merkle tree", _test_data do
+    count = 23
+    tree = MerkleTree.build_tree(for _n <- 1..count, do: (Transaction.test(1,2)))
+    Enum.shuffle(0..count-1)
+    |> Enum.map_reduce(tree, fn index, tree ->
+         trimmed = MerkleTree.trim_tx(tree, index)
+         {trimmed, trimmed}
+       end)
+    |> elem(0)
+    |> Enum.each(fn trimmed -> assert trimmed == MerkleTree.deserialize(MerkleTree.serialize(trimmed), count) end)
+  end
+  
+  test "Byte size is calculated correctly", _data do
+    count = 23
+    tree = MerkleTree.build_tree(for _n <- 1..count, do: (Transaction.test(1,2)))
+    assert MerkleTree.bytes(tree) == byte_size(MerkleTree.serialize(tree))
+  end
 end

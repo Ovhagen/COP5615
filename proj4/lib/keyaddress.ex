@@ -8,7 +8,10 @@ defmodule KeyAddress do
   @address     0x00
   @wifc_suffix 0x01
   
-  @type pkh :: Crypto.hash160
+  @type pubkey  :: <<_::264>> | <<_::520>>
+  @type privkey :: <<_::264>>
+  @type pkh     :: Crypto.hash160
+  @type address :: String.t
   
   def keypair(), do: :crypto.generate_key(:ecdh, :secp256k1)
   def keypair(key) when is_binary(key), do: keypair(:binary.decode_unsigned(key))

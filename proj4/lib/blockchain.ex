@@ -1,46 +1,27 @@
 defmodule Blockchain do
+  import Bitwise
+  
   @coin 1_000_000
-
-  defmodule UTXO do
-    @type id :: <<_::264>>
-    @type t :: %{required(id) => Transaction.Vout.t}
-    
-    @spec from_tx(Transaction.t | [Transaction.t, ...]) :: t
-    def from_tx(txs) when is_list(txs), do: Enum.reduce(txs, %{}, &Map.merge(&2, from_tx(&1)))
-    def from_tx(tx), do: from_vout(tx.vout, 0, Transaction.hash(tx), %{})
-    defp from_vout([], _count, _txid, utxo), do: utxo
-    defp from_vout([vout | tail], count, txid, utxo), do: from_vout(tail, count+1, txid, Map.put(utxo, txid <> <<count::8>>, vout))
-
-    @spec id(Transaction.t, non_neg_integer) :: id
-    def id(tx, vout), do: Transaction.hash(tx) <> <<vout::8>>
-    @spec id(Transaction.Vin.t) :: id
-    def id(vin), do: vin.txid <> <<vin.vout::8>>
-
-    @spec delete(t, Transaction.Vin.t | [Transaction.Vin.t, ...]) :: t
-    def delete(utxo, [vin | tail]), do: delete(utxo, vin) |> delete(tail)
-    def delete(utxo, []), do: utxo
-    def delete(utxo, vin), do: Map.delete(utxo, id(vin))
-  end
+  @interval_target 5
 
   defmodule Mempool do
-    import Crypto
-    
     defstruct tx: %Transaction{}, fee: 0
     @type t :: %{required(Crypto.hash256) => %Mempool{}}
 
     @spec insert(t, Transaction.t, non_neg_integer) :: t
     def insert(mempool, tx, fee), do: Map.put(mempool, Transaction.hash(tx), %Mempool{tx: tx, fee: fee})
     
-    @spec delete(t, Transaction.t | [Transaction.t, ...]) :: t
+    @spec delete(t, Transaction.t | [Transaction.t, ...]| Crypto.hash256 | [Crypto.hash256, ...]) :: t
     def delete(mempool, txs) when is_list(txs), do: Enum.reduce(txs, mempool, &delete(&2, &1))
-    def delete(mempool, tx), do: Map.delete(mempool, Transaction.hash(tx))
+    def delete(mempool, tx) when not is_binary(tx), do: delete(mempool, Transaction.hash(tx))
+    def delete(mempool, tx), do: Map.delete(mempool, tx)
   end
 
   defstruct tip: %Blockchain.Link{}, utxo: %{}, mempool: %{}
 
   @type t :: %Blockchain{
     tip:     Blockchain.Link.t,
-    utxo:    UTXO.t,
+    utxo:    Blockchain.UTXO.t,
     mempool: Mempool.t
   }
 
@@ -60,9 +41,10 @@ defmodule Blockchain do
 
   def get_utxo(utxo, vin) do
     Enum.reduce_while(vin, {:ok, []}, fn vin, {:ok, acc} ->
-      case Map.fetch(utxo, vin.txid <> <<vin.vout::8>>) do
-        {:ok, vout} -> {:cont, {:ok, acc ++ [vout]}}
-        :error      -> {:halt, {:error, :utxo}}
+      case Map.fetch(utxo, {vin.txid, vin.vout}) do
+        {:ok, %Blockchain.UTXO{vout: vout, spent_by: nil}} -> {:cont, {:ok, acc ++ [vout]}}
+        {:ok, %Blockchain.UTXO{spent_by: _txid}}           -> {:halt, {:error, :spent}}
+        :error                                             -> {:halt, {:error, :utxo}}
       end
     end)
   end
@@ -78,35 +60,106 @@ defmodule Blockchain do
        end)
   end
 
-  @spec add_to_mempool(t, Transaction.t) :: {:ok, t} | :error
+  @spec add_to_mempool(t, Transaction.t | [Transaction.t]) :: {:ok, t} | {:error, atom}
+  def add_to_mempool(bc, txs) when is_list(txs) do
+    Enum.reduce(txs, {:ok, bc}, fn tx, {:ok, bc} ->
+      case add_to_mempool(bc, tx) do
+        {:ok, bc} -> {:ok, bc}
+        _error     -> {:ok, bc}
+      end
+    end)
+  end
   def add_to_mempool(bc, tx) do
     with {:ok, fee} <- verify_tx(bc, tx) do
       {
         :ok,
-        Map.update!(bc, :utxo, &UTXO.delete(&1, tx.vin))
+        Map.update!(bc, :utxo, &Blockchain.UTXO.spend(&1, tx))
           |> Map.update!(:mempool, &Mempool.insert(&1, tx, fee))
       }
     else
       error -> error
     end
   end
+  
+  @spec remove_from_mempool(t, Transaction.t | [Transaction.t, ...] | Crypto.hash256 | [Crypto.hash256, ...]) :: t
+  def remove_from_mempool(bc, tx) when not is_list(tx), do: remove_from_mempool(bc, [tx])
+  def remove_from_mempool(bc, txids) when is_binary(hd(txids)) do
+    remove_from_mempool(bc, Enum.map(txids, &Map.get(Map.get(bc.mempool, &1), :tx)), txids)
+  end
+  def remove_from_mempool(bc, txs), do: remove_from_mempool(bc, txs, Enum.map(txs, &Transaction.hash/1))
+  defp remove_from_mempool(bc, txs, txids) do
+    {stxo, utxo} = Map.split(bc.utxo, Blockchain.UTXO.txs_to_keys(txs))
+    utxo = Blockchain.UTXO.merge(utxo, Blockchain.UTXO.unspend(stxo))
+    Map.put(bc, :utxo, utxo)
+    |> Map.update!(:mempool, &Mempool.delete(&1, txids))
+  end
 
+  @doc """
+  Adds a valid block to the chain.
+  The block is verified with three possible outcomes:
+    1. The block is valid and all transactions are in the mempool.
+         In this case, the block is added to the chain, and the UTXO and mempool are updated.
+    2. The block may be valid, but some transactions are not in the mempool.
+         The transactions which are not in the mempool are checked for validity. If there are conflicts,
+         then each conflicting transaction is checked and swapped into the mempool if possible. If each of these
+         steps is completed without errors, then the block is checked from the beginning again.
+    3. The block is not valid.
+         An error is returned which indicates the type of error which invalidated the block.
+  """
   @spec add_block(t, Block.t) :: {:ok, t} | {:error, atom}
   def add_block(bc, block) do
     with :ok <- verify_block(bc, block) do
-      link = Blockchain.Link.new(block, bc.tip)
+      {utxo, stxo} = Blockchain.UTXO.update(bc.utxo, bc.tip.height+1, Block.transactions(block))
+      link = Blockchain.Link.new(block, bc.tip, stxo)
       {
         :ok,
         Map.put(bc, :tip, link)
-          |> add_block_utxo(block)
-          |> delete_block_mempool(block)
+          |> Map.put(:utxo, utxo)
+          |> Map.update!(:mempool, &Mempool.delete(&1, Block.transactions(block) |> tl))
       }
+    else
+      {:mempool, txs} ->
+        with {:ok, bc, conflicts} <- update_with_conflicts(bc, txs),
+             {:ok, bc}            <- resolve_conflicts(bc, block, conflicts)
+        do
+          add_block(bc, block)
+        else
+          error -> error
+        end
+      error -> error
+    end
+  end
+  defp update_with_conflicts(bc, txs) do
+    Enum.reduce_while(txs, {:ok, bc, []}, fn tx, {:ok, bc, conflicts} ->
+      case add_to_mempool(bc, tx) do
+        {:ok, bc}        -> {:cont, {:ok, bc, conflicts}}
+        {:error, :spent} -> {:cont, {:ok, bc, [tx] ++ conflicts}}
+        error            -> {:halt, error}
+      end
+    end)
+  end
+  defp resolve_conflicts(bc, _block, []), do: {:ok, bc}
+  defp resolve_conflicts(bc, block, txs) do
+    block_ids = Enum.map(Block.transactions(block), &Transaction.hash/1)
+    with {:ok, conflicts} <- id_conflicts(bc.utxo, block_ids, txs),
+         conflicts        <- Enum.uniq(conflicts)
+    do
+      remove_from_mempool(bc, conflicts) |> add_to_mempool(txs)
     else
       error -> error
     end
   end
-  defp add_block_utxo(bc, block), do: Map.update!(bc, :utxo, &Map.merge(&1, UTXO.from_tx(block.transactions)))
-  defp delete_block_mempool(bc, block), do: Map.update!(bc, :mempool, &Mempool.delete(&1, block.transactions))
+  defp id_conflicts(utxo, ids, txs) do
+    Enum.flat_map(txs, fn tx -> tx.vin end)
+    |> Enum.reduce_while({:ok, []}, fn vin, {:ok, txids} ->
+         utxo = Map.get(utxo, {vin.txid, vin.vout})
+         cond do
+           utxo.spent_by in ids -> {:halt, {:error, :double_spend}}
+           utxo.spent_by == nil -> {:cont, {:ok, txids}}
+           true                 -> {:cont, {:ok, [utxo.spent_by] ++ txids}}
+         end
+       end)
+  end
   
   @spec verify_block(t, Block.t) :: :ok | {:error, atom}
   def verify_block(bc, block) do
@@ -128,18 +181,21 @@ defmodule Blockchain do
     if block.header.target == next_target(bc), do: :ok, else: {:error, :target}
   end
   defp verify_mempool(bc, block) do
-    Enum.reduce_while(tl(block.transactions), {:ok, 0}, fn tx, {:ok, fees} ->
-      if Transaction.hash(tx) in Map.keys(bc.mempool) do
-        fee = Map.get(bc.mempool, Transaction.hash(tx))
-          |> Map.get(:fee)
-        {:cont, {:ok, fees + fee}}
-      else
-        {:halt, {:error, :mempool}}
-      end
+    Enum.reduce(tl(Block.transactions(block)), {:ok, 0}, fn
+      tx, {:ok, fees} ->
+        if Transaction.hash(tx) in Map.keys(bc.mempool) do
+          fee = Map.get(bc.mempool, Transaction.hash(tx))
+            |> Map.get(:fee)
+          {:ok, fees + fee}
+        else
+          {:mempool, [tx]}
+        end
+      tx, {:mempool, txs} ->
+        if Transaction.hash(tx) in Map.keys(bc.mempool), do: {:mempool, txs}, else: {:mempool, txs ++ [tx]}
     end)
   end
   defp verify_coinbase(bc, block, fees) do
-    with coinbase      <- hd(block.transactions),
+    with coinbase      <- hd(Block.transactions(block)),
          {:ok, value}  <- Transaction.verify_coinbase(coinbase)
     do
       if value == fees + Blockchain.subsidy(bc), do: :ok, else: {:error, :value}
@@ -148,30 +204,60 @@ defmodule Blockchain do
     end
   end
   
-  @spec subsidy(t) :: non_neg_integer
-  def subsidy(_bc) do
-    50 * @coin # constant block reward for now
+  @spec trim_spent_tx(t) :: t
+  def trim_spent_tx(bc) do
+    {utxo, spent} = Blockchain.UTXO.trim(bc.utxo)
+    txs = Map.values(spent)
+      |> Enum.reduce(%{}, &Map.update(&2, Map.get(&1, :block), [Map.get(&1, :pos)], fn list -> [Map.get(&1, :pos)] ++ list end))
+      |> Map.to_list
+      |> Enum.sort_by(&elem(&1, 0), &>=/2)
+    trim_spent_tx(bc, txs)
+    |> Map.put(:utxo, utxo)
   end
+  defp trim_spent_tx(%Blockchain{} = bc, txs), do: Map.put(bc, :tip, trim_spent_tx(bc.tip, txs))
+  defp trim_spent_tx(%Blockchain.Link{height: h} = link, [{b, _} | _] = txs) when b < h, do: Map.put(link, :prev, trim_spent_tx(link.prev, txs))
+  defp trim_spent_tx(%Blockchain.Link{height: h} = link, [{b, txs} | tail]) when b == h do
+    Map.update!(link, :block, fn block ->
+      Enum.reduce(txs, block.merkle_tree, &MerkleTree.trim_tx(&2, &1))
+    end)
+    |> Map.put(:prev, trim_spent_tx(link.prev, tail))
+  end
+  
+  @spec get_block_by_height(t, non_neg_integer) :: Block.t
+  def get_block_by_height(bc, height), do: get_relative_block(bc.tip, bc.tip.height - height)
+  defp get_relative_block(tip, offset) when offset < 1, do: tip.block
+  defp get_relative_block(tip, offset), do: get_relative_block(tip.prev, offset-1)
+  
+  @spec subsidy(t) :: non_neg_integer
+  def subsidy(bc), do: trunc(50 * @coin * :math.exp(-bc.tip.height/6000))
 
   @spec next_target(t) :: <<_::32>>
-  def next_target(bc) do
-    bc.tip.block.header.target # Just keep previous difficulty
+  def next_target(%Blockchain{tip: %Blockchain.Link{height: h}} = bc) when h > 0 do
+    <<exponent::8, mantissa::24>> = bc.tip.block.header.target
+    interval = DateTime.diff(bc.tip.block.header.timestamp, bc.tip.prev.block.header.timestamp)
+    mantissa = mantissa * (1 + 0.002 * (interval - @interval_target)) |> trunc
+    shift = min(max(mantissa - (8 <<< 20), 0), 1) + max(min(mantissa - (8 <<< 4), 0), -1)
+    exponent = exponent + shift
+    mantissa = mantissa >>> (shift*8)
+    <<exponent::8, mantissa::24>>
   end
+  def next_target(bc), do: bc.tip.block.header.target
 
   @spec genesis() :: t
   def genesis() do
     {pubkey, _privkey} = KeyAddress.keypair(1337)
     msg = "01/Dec/2018 P Ovhagen and J Howes"
     coinbase = Transaction.coinbase([Transaction.Vout.new(1_000_000_000, KeyAddress.pubkey_to_pkh(pubkey))], msg)
-    block = Block.new([coinbase], <<0::256>>, <<0x1e800000::32>>)
+    block = Block.new([coinbase], <<0::256>>, <<0x1f004000::32>>)
     %Blockchain{
       tip: %Blockchain.Link{
           block:  block,
           hash:   Block.hash(block),
           prev:   nil,
-          height: 0
+          height: 0,
+          stxo:   Blockchain.UTXO.new
         },
-      utxo: UTXO.from_tx(coinbase)
+      utxo: Blockchain.UTXO.from_tx(coinbase)
     }
   end
 end

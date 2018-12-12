@@ -11,9 +11,11 @@ defmodule Proj4.IntegrationTest do
   def testing_round(bc, keys, utxo_ratio, tx_ratio) do
     # Select UTXOs to use when creating new transactions
     # UTXOs for the same address are grouped together
-    inputs = Map.to_list(bc.utxo)
-      |> Enum.take_random(Map.keys(bc.utxo) |> length |> Kernel.*(utxo_ratio) |> trunc)
-      |> Enum.sort_by(&(elem(&1, 1) |> Map.get(:pkh)))
+    inputs = Map.delete(bc.utxo, :index)
+      |> Enum.filter(fn {_key, utxo} -> utxo.spent_by == nil end)
+      |> Enum.map(fn {key, item} -> {key, item.vout} end)
+      |> Enum.take_random(Map.keys(bc.utxo) |> length |> Kernel.-(1) |> Kernel.*(utxo_ratio) |> trunc)
+      |> Enum.sort_by(&Map.get(elem(&1, 1), :pkh))
       |> Enum.chunk_while([], fn vout, acc ->
              cond do
                acc == [] ->
@@ -35,7 +37,7 @@ defmodule Proj4.IntegrationTest do
         spent = max(:rand.uniform(value), 10_000)
         spent = (if spent-value < 10_000, do: value, else: spent)
         vin = Enum.map(input, fn x ->
-            <<txid::binary-32, vout::8>> = elem(x, 0)
+            {txid, vout} = elem(x, 0)
             Transaction.Vin.new(txid, vout)
           end)
         vout = [Transaction.Vout.new(spent, to)]
@@ -92,7 +94,7 @@ defmodule Proj4.IntegrationTest do
       |> Enum.map(fn {coins, pkh} -> Transaction.Vout.new(coins, pkh) end)
     tx = Transaction.new(
       [Transaction.Vin.new(
-          bc.tip.block.transactions |> hd |> Transaction.hash,
+          Block.transactions(bc.tip.block) |> hd |> Transaction.hash,
           0
         )],
       vout
@@ -113,7 +115,8 @@ defmodule Proj4.IntegrationTest do
     {:ok, bc} = testing_round(bc, keys, 0.8, 1.0)
     
     # Verify that the total coin supply is correct
-    coin_supply = Map.values(bc.utxo) |> Enum.map(&Map.get(&1, :value)) |> Enum.sum
-    assert coin_supply == 1_000_000_000 + 6 * Blockchain.subsidy(bc)
+    coin_supply = Map.delete(bc.utxo, :index) |> Map.values |> Enum.map(&Map.get(Map.get(&1, :vout), :value)) |> Enum.sum
+    expected_supply = 1_000_000_000 + Enum.sum(for n <- 0..5, do: trunc(50_000_000 * :math.exp(-n/6000)))
+    assert coin_supply == expected_supply
   end
 end

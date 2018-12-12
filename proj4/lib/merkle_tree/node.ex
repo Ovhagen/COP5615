@@ -11,6 +11,14 @@ defmodule MerkleTree.Node do
     right: t | Leaf.t | nil
   }
 
-  def new(left, nil), do: %MerkleTree.Node{hash: sha256x2(left.hash <> left.hash), left: left, right: nil}
+  def new(nil, right), do: %MerkleTree.Node{hash: right.hash, left: nil, right: nil}
+  def new(left, nil) do
+    if MerkleTree.stub?(left) do
+      %MerkleTree.Node{hash: left.hash, left: nil, right: nil}
+    else
+      %MerkleTree.Node{hash: sha256x2(left.hash <> left.hash), left: left, right: nil}
+    end
+  end
   def new(left, right), do: %MerkleTree.Node{hash: sha256x2(left.hash <> right.hash), left: left, right: right}
+  def new(hash), do: %MerkleTree.Node{hash: hash, left: nil, right: nil}
 end

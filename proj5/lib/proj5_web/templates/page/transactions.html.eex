@@ -80,10 +80,3 @@
 
 <h4>Chart Description</h4>
 <p class="text-left">This graph displays the number of transactions created between each time interval.</p>
-
-<!-- Dynamic html -->
-<script>
-  $('#trans').click(function(){
-    $(this).toggleClass("nav-link active")
-  });
-</script>

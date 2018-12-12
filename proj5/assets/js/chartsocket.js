@@ -54,12 +54,11 @@ let socket = new Socket("/chartsocket", {params: {token: window.userToken}})
 socket.connect();
 
 var chartKey = "";
-var address = window.location.href;
+var active_page = window.location.href;
 
+active_page = active_page.substr(active_page.lastIndexOf('/')+1);
 
-address = address.substr(address.lastIndexOf('/')+1);
-
-switch (address) {
+switch (active_page) {
   case "transactions":
     chartKey = "tx"
     break;
@@ -101,7 +100,8 @@ chartChannel.on("render_state", payload => {
   }
 });
 
-export default socket
+export default socket;
+export {active_page};
 
 chartChannel.on("upd_figure", payload => {
     pushDataPoint(payload.body[chartKey][0], payload.body[chartKey][1]);

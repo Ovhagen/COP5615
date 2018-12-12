@@ -34,13 +34,13 @@
           <div class="sidebar-sticky">
             <ul class="nav flex-column">
               <li class="nav-item">
-                <a id="msg" class="nav-link active" href="<%= page_path(@conn, :index) %>">
+                <a id="msg" class="nav-link" href="<%= page_path(@conn, :index) %>">
                   <span data-feather="globe"></span>
                   Messages sent <span class="sr-only">(current)</span>
                 </a>
               </li>
               <li class="nav-item">
-                <a id="trans" class="nav-link" href="<%= page_path(@conn, :transactions) %>" onclick="changeToActive(this.id)">
+                <a id="tx" class="nav-link" href="<%= page_path(@conn, :transactions) %>">
                   <span data-feather="navigation"></span>
                   Transactions created
                 </a>
@@ -64,39 +64,6 @@
                 </a>
               </li>
             </ul>
-
-            <!-- <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-              <span>Saved reports</span>
-              <a class="d-flex align-items-center text-muted" href="#">
-                <span data-feather="plus-circle"></span>
-              </a>
-            </h6>
-            <ul class="nav flex-column mb-2">
-              <li class="nav-item">
-                <a class="nav-link" href="#">
-                  <span data-feather="file-text"></span>
-                  Current month
-                </a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="#">
-                  <span data-feather="file-text"></span>
-                  Last quarter
-                </a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="#">
-                  <span data-feather="file-text"></span>
-                  Social engagement
-                </a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="#">
-                  <span data-feather="file-text"></span>
-                  Year-end sale
-                </a>
-              </li>
-            </ul> -->
           </div>
         </nav>
 
@@ -124,6 +91,21 @@
       feather.replace()
     </script>
 
-    <script>window.userToken = "<%= assigns[:user_id] %>"</script>
+    <!-- Dynamic html -->
+    <script>
+    function setActive(id){
+      $("#"+id).addClass("active");
+    }
+
+    var active_page = window.location.href;
+    active_page = active_page.substr(active_page.lastIndexOf('/')+1);
+    switch (active_page) {
+      case "transactions":
+        setActive("tx");
+        break;
+      default:
+        setActive("msg");
+    };
+    </script>
   </body>
 </html>

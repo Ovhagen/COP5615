@@ -20,7 +20,7 @@ defmodule Proj5.FetchData do
   end
 
   def extract_data(map) do
-    Logger.debug(inspect(map))
+    # Logger.debug(inspect(map))
 
     #Nbr of messages
     %{:msg => msgs,

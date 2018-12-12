@@ -21,7 +21,7 @@ To start your Phoenix server:
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
-In the application you can see various statistics and metrics collected from a live simulation of the bitcoin protocol.
+In the application you can see various statistics and metrics collected from a live simulation of the bitcoin protocol. Use the navigation bar tab on the left-hand side to navigate between the different data plots.
 
 ## Bitcoin Tests
 Since this project was built on a previous project, additional features were added to fully implement the distributed Bitcoin protocol.

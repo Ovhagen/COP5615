@@ -13,10 +13,11 @@ Download the project zip to your desired location and unzip it. Make sure you ha
 
 To start your Phoenix server:
 
-  * Install dependencies with `mix deps.get`
-  * Create your database with `mix ecto.create`
-  * Install Node.js dependencies with `cd assets && npm install`
-  * Start Phoenix endpoint with `mix phx.server`
+  * Install dependencies with `mix deps.get`.
+  * Make sure to install PostgreSQL. Choose link depending on OS. [`https://www.postgresql.org/download/`]
+  * Create your database with `mix ecto.create`.
+  * Install Node.js dependencies with `cd assets && npm install`.
+  * Go to project root folder. Start Phoenix endpoint with `mix phx.server`.
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 

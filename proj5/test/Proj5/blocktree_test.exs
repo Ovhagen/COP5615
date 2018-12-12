@@ -6,7 +6,7 @@ defmodule Proj4.BlocktreeTest do
 
   def blockstream(bc, msg) do
     Stream.unfold(bc, fn bc ->
-      block = Miner.mine_block(bc, bc.mempool, :crypto.strong_rand_bytes(32), msg)
+      block = Miner.mine_block(bc, :crypto.strong_rand_bytes(20), msg)
       {
         block,
         Blockchain.add_block(bc, block) |> elem(1)

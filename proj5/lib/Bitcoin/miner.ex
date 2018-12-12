@@ -53,7 +53,6 @@ defmodule Miner do
   """
   @spec build_block(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Block.t
   def build_block(bc, mempool, pkh, msg \\ <<>>) do
-    mempool = select_txs(mempool)
     transactions = [coinbase(bc, mempool, pkh, msg)]
       ++ Enum.map(Map.values(mempool), &Map.get(&1, :tx))
     Block.new(transactions, bc.tip.hash, Blockchain.next_target(bc))
@@ -63,12 +62,19 @@ defmodule Miner do
   Mines a new block on the given blockchain containing the transactions in the given mempool.
   The full coinbase output is directed to the address provided.
   """
-  @spec mine_block(Blockchain.t, Mempool.t, KeyAddress.pkh, binary) :: Block.t
-  def mine_block(bc, mempool, pkh, msg \\ <<>>) do
-    block = build_block(bc, mempool, pkh, msg)
+  @spec build_mine_block(Blockchain.t, KeyAddress.pkh, binary) :: Block.t
+  def build_mine_block(bc, pkh, msg \\ <<>>) do
+    build_block(bc, select_txs(bc.mempool), pkh, msg)
+    |> mine_block(0, 0xffffffff)
+  end
+  
+  @spec mine_block(Block.t, non_neg_integer, pos_integer) :: {:ok, Block.t} | :none
+  def mine_block(block, start \\ 0, increment \\ 0xffff) do
     <<stub::binary-76, _::binary>> = Block.Header.serialize(block.header)
-    {:ok, nonce} = find_valid_hash(stub, Block.calc_target(block.header.target), 0)
-    Block.update_nonce(block, nonce)
+    case find_valid_hash(stub, Block.calc_target(block.header.target), start, increment) do
+      {:ok, nonce} -> Block.update_nonce(block, nonce)
+      :none        -> :none
+    end
   end
 
   @doc """
@@ -76,14 +82,31 @@ defmodule Miner do
   A header stub is a serialized header without the nonce bytes (final 4 bytes).
   Returns the nonce that produces the first valid hash.
   """
-  @spec find_valid_hash(binary, pos_integer, non_neg_integer) :: {:ok, non_neg_integer} | :error
-  def find_valid_hash(_, _, nonce) when nonce > 0xffffffff, do: :error
-  def find_valid_hash(stub, target, nonce) do
+  @spec find_valid_hash(binary, pos_integer, non_neg_integer, pos_integer) :: {:ok, non_neg_integer} | :none
+  def find_valid_hash(_, _, nonce, increment) when nonce > 0xffffffff or increment < 0, do: :none
+  def find_valid_hash(stub, target, nonce, increment) do
     hash = sha256x2(stub <> <<nonce::32>>) |> :binary.decode_unsigned
     if hash < target do
       {:ok, nonce}
     else
-      find_valid_hash(stub, target, nonce+1)
+      find_valid_hash(stub, target, nonce+1, increment-1)
+    end
+  end
+  
+  @doc """
+  Repeatedly mines blocks until a :halt response is received from the server.
+  """
+  @spec mining_loop(pid, KeyAddress.pkh, binary) :: nil
+  def mining_loop(node, pkh, msg) do
+    with {:ok, bc} <- Bitcoin.Node.get_mining_data(node),
+         block     <- build_block(bc, select_txs(bc.mempool), pkh, msg),
+         block     <- mine_block(block, :rand.uniform(0xffff0000)-1)
+    do
+      :ok = GenServer.call(node, {:mined_block, block})
+      mining_loop(node, pkh, msg)
+    else
+      :halt -> nil
+      :none -> mining_loop(node, pkh, msg)
     end
   end
 end

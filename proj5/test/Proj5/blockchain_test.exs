@@ -78,14 +78,14 @@ defmodule Proj4.BlockchainTest do
   """
   test "Mine new block", data do
     # Mine a valid block
-    block = Miner.mine_block(data.bc, data.bc.mempool, data.miner_pkh, "test")
+    block = Miner.build_mine_block(data.bc, data.miner_pkh, "test")
     :ok = Blockchain.verify_block(data.bc, block)
     
     # Block hash does not meet difficulty target
     {:error, :hash} = Blockchain.verify_block(data.bc, Map.update!(block, :header, &Map.put(&1, :nonce, 1)))
     
     # Previous block hash does not match highest block in the blockchain
-    block2 = Miner.mine_block(Map.update!(data.bc, :tip, &Map.put(&1, :hash, <<0::256>>)), data.bc.mempool, data.miner_pkh, "test")
+    block2 = Miner.build_mine_block(Map.update!(data.bc, :tip, &Map.put(&1, :hash, <<0::256>>)), data.miner_pkh, "test")
     {:error, :tip} = Blockchain.verify_block(data.bc, block2)
     
     # Difficulty target does not match expected target for the blockchain
@@ -94,14 +94,16 @@ defmodule Proj4.BlockchainTest do
     
     # Block contains transactions which are not in the mempool
     tx = Transaction.test(2, 2)
-    block = Miner.mine_block(data.bc, Map.new([{Transaction.hash(tx), %{tx: tx, fee: 10}}]), data.miner_pkh, "test")
+    block =
+      Miner.build_block(data.bc, Map.new([{Transaction.hash(tx), %{tx: tx, fee: 10}}]), data.miner_pkh, "test")
+      |> Miner.mine_block(0, 0xffffffff)
     {:mempool, [^tx]} = Blockchain.verify_block(data.bc, block)
     
     # Coinbase transaction has incorrect output value
-    block = Miner.mine_block(data.bc, data.bc.mempool, data.miner_pkh, "test")
+    block = Miner.build_mine_block(data.bc, data.miner_pkh, "test")
     {:ok, bc} = Blockchain.add_block(data.bc, block)
     bc2 = Map.update!(bc, :tip, fn tip -> Map.update!(tip, :height, &(&1 + 1)) end)
-    block = Miner.mine_block(bc2, bc2.mempool, data.miner_pkh, "test")
+    block = Miner.build_mine_block(bc2, data.miner_pkh, "test")
     {:error, :value} = Blockchain.verify_block(bc, block)
   end
   
@@ -112,7 +114,7 @@ defmodule Proj4.BlockchainTest do
   test "Add valid blocks to blockchain", data do
     # Mine empty block and add it to the blockchain
     root = data.bc.tip
-    block = Miner.mine_block(data.bc, data.bc.mempool, data.miner_pkh, "test")
+    block = Miner.build_mine_block(data.bc, data.miner_pkh, "test")
     {:ok, bc} = Blockchain.add_block(data.bc, block)
     assert bc.tip.block == block
     assert bc.tip.height == 1
@@ -123,27 +125,27 @@ defmodule Proj4.BlockchainTest do
     
     # Mine block containing a transaction and add it to the blockchain
     {:ok, bc} = Blockchain.add_to_mempool(data.bc, data.tx)
-    block = Miner.mine_block(bc, bc.mempool, data.miner_pkh, "test")
+    block = Miner.build_mine_block(bc, data.miner_pkh, "test")
     {:ok, bc} = Blockchain.add_block(bc, block)
     assert length(Map.keys(bc.mempool)) == 0
     assert length(Map.keys(bc.utxo)) == 12
     assert length(Map.keys(bc.tip.stxo)) == 2
     
     # Mine block which doesn't include the full mempool and add it to the blockchain
-    block = Miner.mine_block(data.bc, data.bc.mempool, data.miner_pkh, "test")
+    block = Miner.build_mine_block(data.bc, data.miner_pkh, "test")
     {:ok, bc} = Blockchain.add_to_mempool(data.bc, data.tx)
     {:ok, bc} = Blockchain.add_block(bc, block)
     assert length(Map.keys(bc.mempool)) == 1
     assert length(Map.keys(bc.utxo)) == 3
     
     # Sequentially mine and add multiple empty blocks
-    block = Miner.mine_block(data.bc, data.bc.mempool, data.miner_pkh, "test")
+    block = Miner.build_mine_block(data.bc, data.miner_pkh, "test")
     {:ok, bc} = Blockchain.add_block(data.bc, block)
-    block = Miner.mine_block(bc, bc.mempool, data.miner_pkh, "test2")
+    block = Miner.build_mine_block(bc, data.miner_pkh, "test2")
     {:ok, bc} = Blockchain.add_block(bc, block)
-    block = Miner.mine_block(bc, bc.mempool, data.miner_pkh, "test3")
+    block = Miner.build_mine_block(bc, data.miner_pkh, "test3")
     {:ok, bc} = Blockchain.add_block(bc, block)
-    block = Miner.mine_block(bc, bc.mempool, data.miner_pkh, "test4")
+    block = Miner.build_mine_block(bc, data.miner_pkh, "test4")
     {:ok, bc} = Blockchain.add_block(bc, block)
     assert bc.tip.height == 4
     assert bc.tip.prev.prev.prev.prev.hash == root.hash
@@ -154,15 +156,21 @@ defmodule Proj4.BlockchainTest do
     txmatch = data.tx
     tx = {Transaction.hash(data.tx), %{tx: data.tx, fee: 5_000_000}}
     tx2 = {Transaction.hash(data.tx2), %{tx: data.tx2, fee: 5_000_000}}
-    block = Miner.mine_block(data.bc, Map.new([tx]), data.miner_pkh, "test")
+    block =
+      Miner.build_block(data.bc, Map.new([tx]), data.miner_pkh, "test")
+      |> Miner.mine_block(0, 0xffffffff)
     {:mempool, [^txmatch]} = Blockchain.verify_block(data.bc, block)
     {:ok, _bc} = Blockchain.add_block(data.bc, block)
     
-    block = Miner.mine_block(data.bc, Map.new([tx, tx2]), data.miner_pkh, "test")
+    block =
+      Miner.build_block(data.bc, Map.new([tx, tx2]), data.miner_pkh, "test")
+      |> Miner.mine_block(0, 0xffffffff)
     {:error, :double_spend} = Blockchain.add_block(data.bc, block)
     
     {:ok, bc} = Blockchain.add_to_mempool(data.bc, data.tx)
-    block = Miner.mine_block(bc, Map.new([tx2]), data.miner_pkh, "test")
+    block =
+      Miner.build_block(bc, Map.new([tx2]), data.miner_pkh, "test")
+      |> Miner.mine_block(0, 0xffffffff)
     {:ok, bc} = Blockchain.add_block(bc, block)
     assert length(Map.keys(bc.mempool)) == 0
   end

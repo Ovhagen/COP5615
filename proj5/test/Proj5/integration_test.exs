@@ -53,7 +53,9 @@ defmodule Proj4.IntegrationTest do
     # Randomly select a portion of the mempool and mine a new block
     tx_count = Map.keys(bc.mempool) |> length |> Kernel.*(tx_ratio) |> trunc
     mempool = Map.to_list(bc.mempool) |> Enum.take_random(tx_count) |> Map.new
-    block = Miner.mine_block(bc, mempool, Enum.random(Map.keys(keys)), "test block")
+    block =
+      Miner.build_block(bc, mempool, Enum.random(Map.keys(keys)), "test block")
+      |> Miner.mine_block(0, 0xffffffff)
     Blockchain.add_block(bc, block)
   end
   

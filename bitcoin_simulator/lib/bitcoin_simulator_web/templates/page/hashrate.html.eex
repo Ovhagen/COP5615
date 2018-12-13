@@ -1,0 +1,73 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Hash rate</h1>
+</div>
+
+
+<canvas class="my-4 w-100" id="myChart" width="900" height="380"></canvas>
+
+<!-- Graphs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.min.js"></script>
+<script>
+  var ctx = document.getElementById("myChart");
+
+  var data = {
+    labels: [],
+    datasets: [{
+      data: [],
+      lineTension: 0,
+      backgroundColor: 'transparent',
+      borderColor: 'rgb(30, 178, 219)',
+      borderWidth: 2,
+      pointBackgroundColor: 'rgb(30, 178, 219)',
+      pointHoverBorderWidth: 3,
+      pointRadius: 2
+    }]
+  }
+
+  var options = {
+    responsive: true,
+    layout: {
+        padding: {
+            left: 0,
+            right: 10,
+            top: 0,
+            bottom: 0
+        }
+    },
+    scales: {
+      xAxes: [{
+        display: true,
+        scaleLabel: {
+          display: true,
+          labelString: 'Time (seconds)'
+        },
+        ticks: {
+           callback: function(t) {
+             return t + 's';
+           }
+        }
+      }],
+      yAxes: [{
+        ticks: {
+          beginAtZero: false
+        },
+        scaleLabel: {
+          display: true,
+          labelString: 'kH/s'
+        }
+      }]
+    },
+    legend: {
+      display: false,
+      reverse: true
+    }
+  }
+
+ var myChart = new Chart(ctx, {type: 'line',
+                               data: data,
+                               options: options
+                             });
+</script>
+
+<h4>Chart Description</h4>
+<p class="text-left">The graph visualizes the amount of hash power currently present in the network.</p>

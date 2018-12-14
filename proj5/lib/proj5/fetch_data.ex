@@ -3,17 +3,17 @@ defmodule Proj5.FetchData do
 
   @doc "updates all available exchange rates for 58 times"
   def update_all(timeout, startTime) do
-    timeout
-    |> get_and_distribute_data(startTime)
-    :timer.sleep(timeout)
-    update_all(timeout, startTime)
+    get_and_distribute_data(startTime)
+    Task.start(fn ->
+      :timer.sleep(timeout)
+      update_all(timeout, startTime)
+    end)
   end
 
-  def get_and_distribute_data(timeout, startTime) do
+  def get_and_distribute_data(startTime) do
     startTime
     |> get_chart_statistics
     |> broadcast_data
-    :timer.sleep(timeout)
   end
 
   def broadcast_data(data) do

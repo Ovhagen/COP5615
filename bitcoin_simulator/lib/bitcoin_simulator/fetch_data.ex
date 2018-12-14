@@ -4,10 +4,8 @@ defmodule BitcoinSimulator.FetchData do
   @doc "updates all available exchange rates for 58 times"
   def update_all(timeout, startTime) do
     get_and_distribute_data(startTime)
-    Task.start(fn ->
-      Process.sleep(timeout)
-      update_all(timeout, startTime)
-    end)
+    Process.sleep(timeout)
+    update_all(timeout, startTime)
   end
 
   def get_and_distribute_data(startTime) do

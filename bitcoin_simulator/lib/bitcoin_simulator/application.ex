@@ -10,6 +10,7 @@ defmodule BitcoinSimulator.Application do
     children = [
       # Start the endpoint when the application starts
       BitcoinSimulatorWeb.Endpoint,
+      Bitcoin.NetworkSupervisor,
       # Starts a worker by calling: BitcoinSimulator.Worker.start_link(arg)
       {BitcoinSimulatorWeb.ChartChannel.Monitor, [%{"msg" => [], "tx" => [], "tx_trans" => [], "btc_mined" => [], "hash_rate" => []}]}
     ]
@@ -19,7 +20,9 @@ defmodule BitcoinSimulator.Application do
     opts = [strategy: :one_for_one, name: BitcoinSimulator.Supervisor]
     Supervisor.start_link(children, opts)
 
-    timer = 1500
+    BitcoinSimulator.simulation(20, 5, 10)
+    
+    timer = 5000
     startTime = DateTime.utc_now
     BitcoinSimulator.FetchData.update_all(timer, startTime)
   end

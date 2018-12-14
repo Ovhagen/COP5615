@@ -8,7 +8,7 @@ defmodule Bitcoin.Node do
   """
   use GenServer
   
-  defstruct chain: %Blocktree{}, neighbors: [], mining: false
+  defstruct chain: %Blocktree{}, neighbors: [], wallet: nil, mining: false
   
   @type t :: %Bitcoin.Node{
     chain:     Blocktree.t,

@@ -5,7 +5,7 @@ defmodule Bitcoin.Wallet do
   
   use GenServer
   
-  defstruct [:pubkey, :privkey, :pkh]
+  defstruct [:pubkey, :privkey, :pkh, :utxo]
   
   @type t :: %Bitcoin.Wallet{
     pubkey:  KeyAddress.pubkey,
@@ -21,6 +21,8 @@ defmodule Bitcoin.Wallet do
   def join(wallet, node), do: GenServer.call(wallet, {:join, node})
   
   def get_pkh(wallet), do: GenServer.call(wallet, :get_pkh)
+  
+  def request_payment(wallet, value, pkh), do: GenServer.call(wallet, {:payment, value, pkh})
   
   # Server callbacks
   
@@ -45,13 +47,23 @@ defmodule Bitcoin.Wallet do
   
   def handle_call(:get_pkh, _from, state), do: {:reply, state.wallet.pkh, state}
   
+  def handle_call({:payment, value, pkh}, _from, state) do
+    with {:ok, tx} <- build_tx(value, pkh, state.wallet),
+         :ok       <- Bitcoin.Node.verify_tx(state.node, tx)
+    do
+      {:reply, :ok, Map.update!(state, :wallet, &Map.put(&1, :utxo, %{}))}
+    else
+      error -> {:reply, error, state}
+    end
+  end
+  
   @impl true
   def handle_cast({:relay_tx, raw_tx}, state) do
     wallet = Map.put(state.wallet, :utxo,
       Transaction.deserialize(raw_tx)
       |> Blockchain.UTXO.from_tx
       |> Map.delete(:index)
-      |> Enum.filter(fn {key, %{vout: vout}} -> vout.pkh == state.wallet.pkh)
+      |> Enum.filter(fn {_key, %{vout: vout}} -> vout.pkh == state.wallet.pkh end)
       |> Map.new
       |> Map.merge(state.wallet.utxo)
     )
@@ -71,5 +83,23 @@ defmodule Bitcoin.Wallet do
       pkh:     KeyAddress.pubkey_to_pkh(pubkey),
       utxo:    %{}
     }
+  end
+  
+  defp balance(utxo) do
+    Map.values(utxo)
+    |> Enum.map(fn %{vout: vout} -> vout.value end)
+    |> Enum.sum
+  end
+  
+  defp build_tx(value, pkh, wallet) do
+    bal = balance(wallet.utxo)
+    if bal < value do
+      {:error, :balance}
+    else
+      vin = Enum.map(wallet.utxo, fn {{txid, pos}, _vout} -> Transaction.Vin.new(txid, pos) end)
+      vout = if(bal-value-200 > 0, do: [Transaction.Vout.new(bal-value-200, wallet.pkh)], else: [])
+        |> Enum.concat(Transaction.Vout.new(value, pkh))
+      {:ok, Transaction.new(vin, vout) |> Transaction.sign(wallet.pubkey, wallet.privkey)}
+    end
   end
 end

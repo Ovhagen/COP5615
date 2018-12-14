@@ -1,19 +1,43 @@
 # BitcoinSimulator
+A project in the course Distributed Operating System Principles COP5615. This project is a continuation of Project 4 and mainly involves additional implementation to run a larger simulation with the Bitcoin protocol. Especially, we focus on implementing compatibility for various scenarios in the protocol, with respect to miners and wallets, to emphasize correctness with the original whitepaper. These additional scenarios can be tested with new independent unit tests with mix, and include functionality tests for e.g. handling the presence of fork in the blockchain for miners and regular nodes. The second part of the project was to visualize the simulation with different statistics, taken from the simulation in realtime. To accomplish this we utilize the web framework Phoenix in Elixir to dynamically update charts with statistical samples taken from the live simulation.
 
-To start your Phoenix server:
+
+### Authors
+* James Howes (UFID 9262-9312)
+* Lars Pontus Ovhagen (UFID 2992-9498)
+
+## Installation
+Download the project zip to your desired location and unzip it. Make sure you have Elixir/Erlang installed on your computer and that the OS path includes the elixir prompt for easy command access.
+
+## Phoenix Setup
 
   * Install dependencies with `mix deps.get`
   * Install Node.js dependencies with `cd assets && npm install`
-  * Start Phoenix endpoint with `mix phx.server`
+  * Go to project root folder. Start Phoenix endpoint with `mix phx.server`.
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
+In the application you can see various statistics and metrics collected from a live simulation of the bitcoin protocol. Use the navigation bar tab on the left-hand side to navigate between the different data plots.
 
-## Learn more
+## Bitcoin Tests
+Since this project was built on a previous project, additional features were added to fully implement the distributed Bitcoin protocol.
+Our new unit tests include ....
+You can run them individually by .....
 
-  * Official website: http://www.phoenixframework.org/
-  * Guides: https://hexdocs.pm/phoenix/overview.html
-  * Docs: https://hexdocs.pm/phoenix
-  * Mailing list: http://groups.google.com/group/phoenix-talk
-  * Source: https://github.com/phoenixframework/phoenix
+## Network observations
+* Messages Sent
+* Transactions created
+* Bitcoins transacted
+* Bitcoins mined
+* Hash rate
+
+## Scenarios
+
+#### Forks
+* Handle branches and drop them dynamically as the chain progresses.
+
+#### Transactions
+* Transaction exclusion (low fee, still guaranteed to be included? how long does it take?)
+* Wallet displaying balance after certain amount of confirmations
+
+#### ....

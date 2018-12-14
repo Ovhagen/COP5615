@@ -132,7 +132,12 @@ defmodule Blocktree do
   @spec add_to_mempool(t, Transaction.t) :: {:ok, t} | {:error, atom}
   def add_to_mempool(bt, tx) do
     case add_to_mempools(bt.forks, tx) do
-      {:ok, forks} -> {:ok, Map.put(bt, :forks, forks)}
+      {:ok, forks} ->
+        {
+          :ok,
+          Map.put(bt, :mainchain, Enum.find(forks, fn fork -> fork.tip.hash == bt.mainchain.tip.hash end))
+          |> Map.put(:forks, forks)
+        }
       error        -> error
     end
   end

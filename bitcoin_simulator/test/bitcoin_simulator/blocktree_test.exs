@@ -151,5 +151,9 @@ defmodule BlocktreeTest do
     assert map_size(bc1.mempool) == 1
     
     {:error, :orphan} = Blocktree.add_to_mempool(bt, Transaction.test(1, 2))
+
+    {:ok, block} = Miner.build_mine_block(bt.mainchain, :crypto.strong_rand_bytes(20), "test")
+    {:ok, bt} = Blocktree.add_block(bt, block)
+    assert map_size(bt.mainchain.mempool) == 0
   end
 end

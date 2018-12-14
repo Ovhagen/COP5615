@@ -21,7 +21,7 @@ defmodule Bitcoin.Node do
   
   def start_link(args \\ %Bitcoin.Node{}), do: GenServer.start_link(__MODULE__, args)
   
-  def child_spec(wallet, neighbors \\ []) do
+  def child_spec(args) do
     %{
       id:    __MODULE__,
       start: {
@@ -29,8 +29,8 @@ defmodule Bitcoin.Node do
         :start_link,
         [%Bitcoin.Node{
           chain:     Blocktree.genesis,
-          neighbors: neighbors,
-          wallet:    wallet,
+          neighbors: args.neighbors,
+          wallet:    args.wallet,
           mining:    false
         }]}
     }
@@ -60,6 +60,7 @@ defmodule Bitcoin.Node do
   def init(args), do: {:ok, args}
   
   ## Handlers
+  
   @impl true
   def handle_call({:add_neighbor, pid}, _from, state) do
     {:reply, :ok, if(pid in state.neighbors, do: state, else: Map.update!(state, :neighbors, &List.insert_at(&1, 0, pid)))}

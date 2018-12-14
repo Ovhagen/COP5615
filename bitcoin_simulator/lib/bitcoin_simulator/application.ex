@@ -18,10 +18,6 @@ defmodule BitcoinSimulator.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: BitcoinSimulator.Supervisor]
     Supervisor.start_link(children, opts)
-    
-    timer = 1500
-    startTime = DateTime.utc_now
-    BitcoinSimulator.FetchData.update_all(timer, startTime)
   end
 
   # Tell Phoenix to update the endpoint configuration

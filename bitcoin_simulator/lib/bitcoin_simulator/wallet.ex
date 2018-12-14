@@ -16,11 +16,13 @@ defmodule Bitcoin.Wallet do
   
   # Client interface
   
-  def start_link(seed \\ nil), do: GenServer.start_link(__MODULE__, [seed])
+  def start_link(seed \\ nil), do: GenServer.start_link(__MODULE__, seed)
   
   def join(wallet, node), do: GenServer.call(wallet, {:join, node})
   
   def get_pkh(wallet), do: GenServer.call(wallet, :get_pkh)
+  
+  def get_balance(wallet), do: GenServer.call(wallet, :get_balance)
   
   def request_payment(wallet, value, pkh), do: GenServer.call(wallet, {:payment, value, pkh})
   
@@ -45,7 +47,9 @@ defmodule Bitcoin.Wallet do
     end
   end
   
-  def handle_call(:get_pkh, _from, state), do: {:reply, state.wallet.pkh, state}
+  def handle_call(:get_pkh, _from, state), do: {:reply, {:ok, state.wallet.pkh}, state}
+  
+  def handle_call(:get_balance, _from, state), do: {:reply, {:ok, balance(state.wallet.utxo)}, state}
   
   def handle_call({:payment, value, pkh}, _from, state) do
     with {:ok, tx} <- build_tx(value, pkh, state.wallet),
@@ -71,7 +75,7 @@ defmodule Bitcoin.Wallet do
   end
   
   # Ignore blocks for now, we aren't checking for transaction confirmation.
-  def handle_cast({:relay_block, _raw_block}, state), do: {:noreply, state}
+  def handle_cast({:relay_block, _raw_block, _from}, state), do: {:noreply, state}
   
   # Helper functions
 
@@ -98,7 +102,7 @@ defmodule Bitcoin.Wallet do
     else
       vin = Enum.map(wallet.utxo, fn {{txid, pos}, _vout} -> Transaction.Vin.new(txid, pos) end)
       vout = if(bal-value-200 > 0, do: [Transaction.Vout.new(bal-value-200, wallet.pkh)], else: [])
-        |> Enum.concat(Transaction.Vout.new(value, pkh))
+        |> Enum.concat([Transaction.Vout.new(value, pkh)])
       {:ok, Transaction.new(vin, vout) |> Transaction.sign(wallet.pubkey, wallet.privkey)}
     end
   end

@@ -10,7 +10,7 @@ defmodule Bitcoin.NetworkSupervisorTest do
   end
   
   test "Start a single node" do
-    {:ok, node} = Bitcoin.NetworkSupervisor.start_node()
+    {:ok, node} = Bitcoin.NetworkSupervisor.start_node
     assert node in Bitcoin.NetworkSupervisor.node_list
     :ok = DynamicSupervisor.terminate_child(Bitcoin.NetworkSupervisor, node)
   end
@@ -31,7 +31,7 @@ defmodule Bitcoin.NetworkSupervisorTest do
   test "Every node mining on a network" do
     {:ok, nodes} = Bitcoin.NetworkSupervisor.start_nodes(10)
     Enum.each(nodes, &Bitcoin.Node.start_mining/1)
-    Process.sleep(5_000)
+    Process.sleep(10_000)
     Enum.each(nodes, fn node -> :ok = DynamicSupervisor.terminate_child(Bitcoin.NetworkSupervisor, node) end)
   end
 end

@@ -5,7 +5,7 @@ defmodule BitcoinSimulator.FetchData do
   def update_all(timeout, startTime) do
     get_and_distribute_data(startTime)
     Task.start(fn ->
-      :timer.sleep(timeout)
+      Process.sleep(timeout)
       update_all(timeout, startTime)
     end)
   end
